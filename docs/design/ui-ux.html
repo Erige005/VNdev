@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VNdev — Bản thiết kế UI/UX</title>
+<style>
+:root{
+  --bg:#0b0c10; --panel:#13151c; --panel2:#181b24; --panel3:#1e222d;
+  --line:#272c38; --line2:#343a49;
+  --tx:#e8eaf0; --tx2:#a0a6b8; --tx3:#6b7386;
+  --acc:#7c6cff; --acc2:#ff6ba8; --ok:#3ecf8e; --warn:#ffb648; --err:#ff5f6d;
+  --r:10px;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+
+/* ===== LAYOUT ===== */
+.wrap{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+.nav{background:var(--panel);border-right:1px solid var(--line);padding:22px 0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{padding:0 20px 20px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.brand h1{font-size:19px;font-weight:700;letter-spacing:-.4px;background:linear-gradient(100deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.brand p{font-size:11px;color:var(--tx3);margin-top:2px;letter-spacing:.3px}
+.navsec{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--tx3);padding:14px 20px 6px;font-weight:600}
+.nav a{display:flex;align-items:center;gap:9px;padding:8px 20px;color:var(--tx2);text-decoration:none;font-size:13px;border-left:2px solid transparent;transition:.12s}
+.nav a:hover{color:var(--tx);background:rgba(124,108,255,.06)}
+.nav a.on{color:var(--tx);border-left-color:var(--acc);background:rgba(124,108,255,.1);font-weight:500}
+.nav a i{width:15px;text-align:center;font-style:normal;opacity:.75;font-size:12px}
+.main{padding:40px 46px 90px;max-width:1340px}
+
+/* ===== TYPO ===== */
+section{margin-bottom:76px;scroll-margin-top:24px}
+h2{font-size:25px;font-weight:700;letter-spacing:-.5px;margin-bottom:6px}
+h2 .num{color:var(--acc);font-weight:600;margin-right:10px;font-variant-numeric:tabular-nums}
+.sub{color:var(--tx2);font-size:14px;margin-bottom:24px;max-width:860px}
+h3{font-size:15px;font-weight:650;margin:30px 0 12px;display:flex;align-items:center;gap:9px}
+h3::before{content:'';width:3px;height:14px;background:var(--acc);border-radius:2px}
+p{color:var(--tx2);max-width:880px;margin-bottom:12px}
+strong{color:var(--tx);font-weight:600}
+code{font-family:var(--mono);font-size:12px;background:var(--panel3);padding:1px 6px;border-radius:4px;color:#b8a9ff}
+
+/* ===== MOCKUP FRAME ===== */
+.mock{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);margin:18px 0}
+.titlebar{height:36px;background:#0f1117;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 13px;gap:8px}
+.dots{display:flex;gap:6px}
+.dots span{width:11px;height:11px;border-radius:50%}
+.dots span:nth-child(1){background:#ff5f56}.dots span:nth-child(2){background:#ffbd2e}.dots span:nth-child(3){background:#27c93f}
+.titlebar .t{font-size:12px;color:var(--tx3);margin-left:10px}
+
+/* app toolbar */
+.toolbar{height:46px;background:var(--panel2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px;gap:6px}
+.tbtn{padding:5px 11px;border-radius:7px;font-size:12px;color:var(--tx2);cursor:default;white-space:nowrap}
+.tbtn:hover{background:var(--panel3)}
+.tbtn.on{background:rgba(124,108,255,.16);color:#c3b9ff;font-weight:500}
+.tsep{width:1px;height:20px;background:var(--line);margin:0 5px}
+.spacer{flex:1}
+.pill{padding:4px 11px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.2px}
+.pill.play{background:var(--ok);color:#05130c}
+.pill.exp{background:linear-gradient(100deg,var(--acc),var(--acc2));color:#fff}
+.pill.ai{background:rgba(124,108,255,.18);color:#b3a6ff;border:1px solid rgba(124,108,255,.35)}
+
+/* app body grid */
+.appbody{display:grid;min-height:430px}
+.pane{background:var(--panel);border-right:1px solid var(--line);overflow:hidden}
+.pane:last-child{border-right:none}
+.panehead{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--line);font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--tx3);font-weight:600;background:var(--panel2)}
+.panebody{padding:10px}
+
+/* tree */
+.tree{font-size:12.5px}
+.tr{display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:6px;color:var(--tx2)}
+.tr:hover{background:var(--panel3)}
+.tr.on{background:rgba(124,108,255,.14);color:var(--tx)}
+.tr .ic{opacity:.6;font-size:11px;width:13px}
+.tr.ind{padding-left:24px}
+.tr.ind2{padding-left:40px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* ===== STORY GRAPH ===== */
+.graph{position:relative;background:
+   radial-gradient(circle at 1px 1px,#242938 1px,transparent 0) 0 0/22px 22px,
+   var(--panel2);
+  min-height:430px;overflow:hidden;position:relative}
+.gcanvas{position:absolute;left:0;top:0;width:880px;height:430px}
+.node{position:absolute;width:176px;background:var(--panel3);border:1px solid var(--line2);border-radius:9px;font-size:11.5px;box-shadow:0 6px 18px rgba(0,0,0,.45);overflow:hidden}
+.node .nh{padding:6px 9px;font-weight:600;font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:6px;color:#fff}
+.node .nb{padding:8px 9px;color:var(--tx2);font-size:11.5px;line-height:1.45}
+.node.sel{border-color:var(--acc);box-shadow:0 0 0 2px rgba(124,108,255,.3),0 6px 18px rgba(0,0,0,.45)}
+.n-scene .nh{background:linear-gradient(90deg,#4b5bd8,#5f6fe8)}
+.n-choice .nh{background:linear-gradient(90deg,#c9761f,#e08b2a)}
+.n-cond .nh{background:linear-gradient(90deg,#1f8a7a,#25a893)}
+.n-var .nh{background:linear-gradient(90deg,#7a4fb5,#9260d1)}
+.n-end .nh{background:linear-gradient(90deg,#b8384d,#d1445c)}
+.port{width:9px;height:9px;border-radius:50%;background:var(--panel);border:2px solid var(--tx3);position:absolute}
+.chline{padding:5px 9px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--tx2);font-size:11px}
+svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.minimap{position:absolute;right:12px;bottom:12px;width:132px;height:84px;background:rgba(10,11,16,.85);border:1px solid var(--line2);border-radius:7px;backdrop-filter:blur(8px)}
+.mmnode{position:absolute;border-radius:2px;opacity:.75}
+.zoomer{position:absolute;left:12px;bottom:12px;display:flex;background:rgba(10,11,16,.85);border:1px solid var(--line2);border-radius:7px;overflow:hidden;backdrop-filter:blur(8px)}
+.zoomer span{padding:5px 11px;font-size:11px;color:var(--tx2);border-right:1px solid var(--line2)}
+.zoomer span:last-child{border:none}
+
+/* inspector */
+.field{margin-bottom:12px}
+.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--tx3);margin-bottom:4px;font-weight:600}
+.input{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;color:var(--tx)}
+.input.sm{padding:4px 8px;font-size:11.5px}
+.row{display:flex;gap:7px}
+.row>*{flex:1}
+.slider{height:4px;background:var(--line2);border-radius:3px;position:relative;margin:9px 0}
+.slider::after{content:'';position:absolute;left:0;top:0;height:100%;width:62%;background:var(--acc);border-radius:3px}
+.slider.full::after{width:100%}
+.slider.full::before{left:100%}
+.slider::before{content:'';position:absolute;left:62%;top:50%;transform:translate(-50%,-50%);width:13px;height:13px;background:#fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.toggle{width:32px;height:18px;background:var(--acc);border-radius:99px;position:relative;flex:0 0 auto}
+.toggle::after{content:'';position:absolute;right:2px;top:2px;width:14px;height:14px;background:#fff;border-radius:50%}
+.toggle.off{background:var(--line2)}
+.toggle.off::after{right:auto;left:2px}
+
+/* ===== SCENE CANVAS ===== */
+.stage{background:#0a0b0f;display:flex;align-items:center;justify-content:center;padding:16px;min-height:330px}
+.frame{width:100%;max-width:530px;aspect-ratio:16/9;border-radius:6px;position:relative;overflow:hidden;
+  background:linear-gradient(170deg,#2c3f63 0%,#4b5f8c 42%,#8a7ba8 72%,#d4a0a8 100%);
+  box-shadow:0 0 0 1px var(--acc),0 14px 40px rgba(0,0,0,.6)}
+.sun{position:absolute;right:16%;top:16%;width:46px;height:46px;border-radius:50%;background:radial-gradient(circle,#ffe9b0,#ffbc6b);filter:blur(1px);opacity:.85}
+.cloud{position:absolute;background:rgba(255,255,255,.14);border-radius:99px;filter:blur(7px)}
+.char{position:absolute;bottom:0;border-radius:44% 44% 0 0;box-shadow:0 0 34px rgba(0,0,0,.28)}
+.c1{left:11%;width:118px;height:70%;background:linear-gradient(175deg,#e8c4a8,#c98f7a 55%,#7b5a6e)}
+.c2{right:13%;width:110px;height:64%;background:linear-gradient(175deg,#cbd4ef,#8d9ad4 55%,#5a5f96);opacity:.62}
+.selbox{position:absolute;border:1.5px solid var(--acc);border-radius:3px}
+.selbox i{position:absolute;width:7px;height:7px;background:#fff;border:1px solid var(--acc);border-radius:1px}
+.tbox{position:absolute;left:5%;right:5%;bottom:5%;background:rgba(10,12,22,.78);border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:11px 15px;backdrop-filter:blur(10px)}
+.tname{display:inline-block;font-size:11px;font-weight:700;color:#ffd0e0;margin-bottom:4px;letter-spacing:.4px}
+.ttext{font-size:12px;color:#f2f4fa;line-height:1.5}
+.caret{display:inline-block;width:6px;height:11px;background:#fff;vertical-align:-1px;margin-left:2px;animation:bl .9s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+
+/* timeline */
+.tl{background:var(--panel2);border-top:1px solid var(--line);padding:9px 11px;display:flex;gap:6px;overflow:hidden}
+.tlc{min-width:112px;background:var(--panel3);border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:11px;flex-shrink:0}
+.tlc.on{border-color:var(--acc);background:rgba(124,108,255,.12)}
+.tlc .who{font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--tx3);margin-bottom:3px;font-weight:600}
+.tlc .txt{color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tlc.add{display:flex;align-items:center;justify-content:center;color:var(--tx3);min-width:40px;border-style:dashed}
+
+/* ===== AI PANEL ===== */
+.aimsg{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:9px;font-size:12.5px;color:var(--tx2)}
+.aimsg.me{background:rgba(124,108,255,.1);border-color:rgba(124,108,255,.28)}
+.diff{font-family:var(--mono);font-size:11.5px;border-radius:7px;overflow:hidden;border:1px solid var(--line);margin:9px 0}
+.diff div{padding:4px 10px}
+.dmin{background:rgba(255,95,109,.1);color:#ff9aa3;border-left:2px solid var(--err)}
+.dplus{background:rgba(62,207,142,.1);color:#7ee8b8;border-left:2px solid var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{padding:4px 10px;border-radius:99px;font-size:11px;background:var(--panel3);border:1px solid var(--line2);color:var(--tx2)}
+.chip.on{background:rgba(124,108,255,.16);border-color:rgba(124,108,255,.4);color:#c3b9ff}
+.btnrow{display:flex;gap:7px;margin-top:10px}
+.btn{padding:6px 13px;border-radius:7px;font-size:12px;font-weight:600;text-align:center}
+.btn.p{background:var(--acc);color:#fff}
+.btn.g{background:var(--panel3);color:var(--tx2);border:1px solid var(--line2)}
+.btn.ok{background:var(--ok);color:#05130c}
+
+/* ===== GRIDS / CARDS ===== */
+.grid{display:grid;gap:9px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g5{grid-template-columns:repeat(5,1fr)}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.thumb{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:rgba(255,255,255,.55);font-weight:600}
+.card .cap{padding:5px 7px;font-size:10.5px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid var(--line)}
+.card.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+
+/* ===== TABLES ===== */
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:12px 0}
+th{text-align:left;padding:9px 12px;background:var(--panel2);color:var(--tx3);font-size:10px;text-transform:uppercase;letter-spacing:.9px;border-bottom:1px solid var(--line);font-weight:600}
+td{padding:9px 12px;border-bottom:1px solid var(--line);color:var(--tx2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+table.box{background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+
+/* ===== NOTES ===== */
+.note{border-left:3px solid var(--acc);background:rgba(124,108,255,.07);padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0;font-size:13px;color:var(--tx2)}
+.note b{color:var(--tx)}
+.note.w{border-color:var(--warn);background:rgba(255,182,72,.07)}
+.note.g{border-color:var(--ok);background:rgba(62,207,142,.07)}
+
+/* ===== ANNOT ===== */
+.annot{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:11px;margin-top:14px}
+.an{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+.an .k{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--acc);color:#fff;font-size:11px;font-weight:700;margin-bottom:7px}
+.an .t{font-size:13px;font-weight:600;margin-bottom:3px}
+.an .d{font-size:12px;color:var(--tx3);line-height:1.5}
+
+/* ===== FLOW DIAGRAM ===== */
+.flow{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:26px;margin:18px 0}
+.frow{display:flex;align-items:stretch;gap:13px;justify-content:center;flex-wrap:wrap}
+.fbox{background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:13px 17px;min-width:158px;text-align:center}
+.fbox .ft{font-size:12.5px;font-weight:650;margin-bottom:3px}
+.fbox .fd{font-size:11px;color:var(--tx3);line-height:1.45}
+.fbox.acc{border-color:var(--acc);background:rgba(124,108,255,.09)}
+.fbox.ok{border-color:var(--ok);background:rgba(62,207,142,.07)}
+.farr{display:flex;align-items:center;color:var(--tx3);font-size:17px;padding:0 2px}
+.fvert{text-align:center;color:var(--tx3);font-size:17px;margin:9px 0}
+
+/* code block */
+pre{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:15px 17px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.65;color:var(--tx2);margin:12px 0}
+pre .c{color:var(--tx3)}
+pre .k{color:#b8a9ff}
+pre .s{color:#7ee8b8}
+pre .n{color:#ffb648}
+
+/* bars */
+.bar{height:26px;border-radius:5px;display:flex;align-items:center;padding:0 10px;font-size:11px;font-weight:650;color:#fff;margin-bottom:7px;white-space:nowrap}
+.barlbl{display:flex;align-items:center;gap:11px;margin-bottom:7px}
+.barlbl .nm{width:78px;font-size:12px;color:var(--tx2);flex-shrink:0}
+.barlbl .bw{flex:1}
+
+hr{border:none;border-top:1px solid var(--line);margin:34px 0}
+.foot{color:var(--tx3);font-size:12px;text-align:center;padding-top:26px;border-top:1px solid var(--line)}
+
+@media(max-width:1000px){.wrap{grid-template-columns:1fr}.nav{position:static;height:auto}.main{padding:26px 20px 60px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ================= NAV ================= -->
+<nav class="nav">
+  <div class="brand">
+    <h1>VNdev</h1>
+    <p>BẢN THIẾT KẾ UI/UX · v1</p>
+  </div>
+  <div class="navsec">Tổng quan</div>
+  <a href="#s0" class="on"><i>◈</i>Nguyên tắc thiết kế</a>
+  <a href="#s1"><i>▤</i>Bố cục tổng thể</a>
+  <div class="navsec">Màn hình chính</div>
+  <a href="#s2"><i>⬡</i>Story Graph</a>
+  <a href="#s3"><i>▣</i>Scene Canvas</a>
+  <a href="#s4"><i>✦</i>AI Co-writer</a>
+  <a href="#s5"><i>☺</i>Nhân vật &amp; Asset</a>
+  <div class="navsec">Cấu hình &amp; Xuất bản</div>
+  <a href="#s6"><i>⚙</i>AI Providers</a>
+  <a href="#s7"><i>↗</i>Export</a>
+  <div class="navsec">Sản phẩm cuối</div>
+  <a href="#s8"><i>▶</i>Game Runtime</a>
+  <div class="navsec">Kỹ thuật</div>
+  <a href="#s9"><i>⌗</i>Kiến trúc &amp; Data flow</a>
+  <a href="#s10"><i>{}</i>Schema dữ liệu</a>
+  <a href="#s11"><i>≡</i>So sánh Ren'Py</a>
+</nav>
+
+<!-- ================= MAIN ================= -->
+<main class="main">
+
+<!-- ========== 0. NGUYÊN TẮC ========== -->
+<section id="s0">
+  <h2><span class="num">00</span>Nguyên tắc thiết kế</h2>
+  <p class="sub">Năm quy tắc dưới đây quyết định mọi lựa chọn giao diện trong tài liệu này. Khi có mâu thuẫn giữa hai phương án, quy tắc đứng trước thắng.</p>
+
+  <div class="annot">
+    <div class="an"><div class="k">1</div><div class="t">Thấy trước, sửa sau</div><div class="d">Mọi thao tác phải có phản hồi thị giác tức thì. Không có nút nào bắt người dùng "build rồi mới biết kết quả".</div></div>
+    <div class="an"><div class="k">2</div><div class="t">Canvas là game thật</div><div class="d">Khung thiết kế và khung chơi game là cùng một engine. Cái bạn kéo thả chính là cái người chơi thấy, không sai một pixel.</div></div>
+    <div class="an"><div class="k">3</div><div class="t">Code là tùy chọn, không bắt buộc</div><div class="d">Mọi tính năng phải làm được bằng giao diện. Ô nhập biểu thức chỉ dành cho người dùng nâng cao muốn đi nhanh hơn.</div></div>
+    <div class="an"><div class="k">4</div><div class="t">AI đề xuất, người quyết</div><div class="d">AI không bao giờ ghi trực tiếp. Mọi kết quả hiện dạng diff xanh/đỏ để tác giả duyệt từng dòng.</div></div>
+    <div class="an"><div class="k">5</div><div class="t">Tối giản nhưng không nghèo nàn</div><div class="d">Giao diện tối, tương phản cao để ảnh game nổi bật. Màu nhấn chỉ dùng cho hành động và trạng thái, không trang trí.</div></div>
+  </div>
+
+  <h3>Bảng màu hệ thống</h3>
+  <p>Chủ đề tối là mặc định vì công cụ sáng tạo hình ảnh cần nền trung tính để mắt đánh giá đúng màu của asset. Màu nhấn dùng dải tím → hồng, gợi cảm giác thể loại visual novel mà không rơi vào sến.</p>
+  <div class="grid g5" style="margin-top:14px">
+    <div class="card"><div class="thumb" style="background:#0b0c10;border-bottom:1px solid var(--line)">#0b0c10</div><div class="cap">Nền ứng dụng</div></div>
+    <div class="card"><div class="thumb" style="background:#13151c">#13151c</div><div class="cap">Panel</div></div>
+    <div class="card"><div class="thumb" style="background:#1e222d">#1e222d</div><div class="cap">Bề mặt nổi</div></div>
+    <div class="card"><div class="thumb" style="background:#7c6cff">#7c6cff</div><div class="cap">Nhấn chính</div></div>
+    <div class="card"><div class="thumb" style="background:#ff6ba8">#ff6ba8</div><div class="cap">Nhấn phụ</div></div>
+  </div>
+  <div class="grid g5" style="margin-top:9px">
+    <div class="card"><div class="thumb" style="background:#3ecf8e">#3ecf8e</div><div class="cap">Thành công / Play</div></div>
+    <div class="card"><div class="thumb" style="background:#ffb648">#ffb648</div><div class="cap">Cảnh báo</div></div>
+    <div class="card"><div class="thumb" style="background:#ff5f6d">#ff5f6d</div><div class="cap">Lỗi / Ending</div></div>
+    <div class="card"><div class="thumb" style="background:#e8eaf0;color:#333">#e8eaf0</div><div class="cap">Chữ chính</div></div>
+    <div class="card"><div class="thumb" style="background:#6b7386">#6b7386</div><div class="cap">Chữ mờ</div></div>
+  </div>
+</section>
+
+<!-- ========== 1. BỐ CỤC ========== -->
+<section id="s1">
+  <h2><span class="num">01</span>Bố cục tổng thể</h2>
+  <p class="sub">Toàn bộ app nằm trong một cửa sổ duy nhất, chia bốn vùng cố định. Người dùng đổi chế độ làm việc bằng thanh tab ở giữa toolbar chứ không mở cửa sổ mới — tránh tình trạng lạc cửa sổ như các editor cũ.</p>
+
+  <div class="mock">
+    <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div><div class="t">VNdev — Sakura no Kioku</div></div>
+    <div class="toolbar">
+      <div class="tbtn">Tệp</div><div class="tbtn">Sửa</div><div class="tbtn">Xem</div>
+      <div class="tsep"></div>
+      <div class="tbtn on">⬡ Cốt truyện</div><div class="tbtn">▣ Cảnh</div><div class="tbtn">☺ Nhân vật</div><div class="tbtn">▤ Asset</div>
+      <div class="spacer"></div>
+      <div class="pill ai">✦ AI</div><div class="pill play">▶ Chơi thử</div><div class="pill exp">↗ Xuất bản</div>
+    </div>
+    <div class="appbody" style="grid-template-columns:172px 1fr 218px">
+      <div class="pane">
+        <div class="panehead">Chương</div>
+        <div class="panebody tree">
+          <div class="tr on"><span class="ic">▾</span>Chương 1 · Gặp gỡ</div>
+          <div class="tr ind"><span class="dot" style="background:#5f6fe8"></span>Sân trường</div>
+          <div class="tr ind"><span class="dot" style="background:#e08b2a"></span>Lựa chọn đầu</div>
+          <div class="tr ind"><span class="dot" style="background:#5f6fe8"></span>Thư viện</div>
+          <div class="tr"><span class="ic">▸</span>Chương 2 · Bí mật</div>
+          <div class="tr"><span class="ic">▸</span>Chương 3 · Chia ly</div>
+          <div class="tr" style="color:var(--tx3);margin-top:6px"><span class="ic">+</span>Thêm chương</div>
+        </div>
+      </div>
+      <div class="pane" style="background:var(--panel2);display:flex;align-items:center;justify-content:center;color:var(--tx3);font-size:13px;flex-direction:column;gap:6px">
+        <div style="font-size:30px;opacity:.25">⬡</div>
+        <div>Vùng làm việc chính</div>
+        <div style="font-size:11.5px;opacity:.7">Story Graph · Scene Canvas · Asset Library</div>
+      </div>
+      <div class="pane">
+        <div class="panehead">Thuộc tính</div>
+        <div class="panebody">
+          <div style="color:var(--tx3);font-size:12px;text-align:center;padding:30px 10px;line-height:1.6">Chọn một đối tượng<br>để chỉnh thuộc tính</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annot">
+    <div class="an"><div class="k">A</div><div class="t">Thanh công cụ</div><div class="d">Menu bên trái, tab chế độ ở giữa, ba hành động lớn bên phải: AI, Chơi thử, Xuất bản. Ba nút này luôn ở đúng một chỗ dù đang ở chế độ nào.</div></div>
+    <div class="an"><div class="k">B</div><div class="t">Điều hướng trái</div><div class="d">Cây chương và cảnh. Chấm màu cho biết loại node, giúp nhìn ra cấu trúc truyện mà không cần mở graph.</div></div>
+    <div class="an"><div class="k">C</div><div class="t">Vùng làm việc</div><div class="d">Đổi nội dung theo tab đang chọn. Luôn chiếm phần lớn diện tích — đây là nơi người dùng nhìn 90% thời gian.</div></div>
+    <div class="an"><div class="k">D</div><div class="t">Thuộc tính phải</div><div class="d">Ngữ cảnh theo đối tượng đang chọn. Rỗng thì hiện gợi ý thay vì để trống — tránh cảm giác app bị lỗi.</div></div>
+  </div>
+</section>
+
+<!-- ========== 2. STORY GRAPH ========== -->
+<section id="s2">
+  <h2><span class="num">02</span>Story Graph — Trình dựng cốt truyện</h2>
+  <p class="sub">Đây là màn hình khác biệt lớn nhất so với Ren'Py. Toàn bộ cốt truyện hiện ra như một bản đồ: nhìn một cái là biết truyện có mấy nhánh, nhánh nào dẫn tới ending nào, chỗ nào còn dang dở.</p>
+
+  <div class="mock">
+    <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div><div class="t">Cốt truyện — Chương 1</div></div>
+    <div class="toolbar">
+      <div class="tbtn">+ Cảnh</div><div class="tbtn">+ Lựa chọn</div><div class="tbtn">+ Điều kiện</div><div class="tbtn">+ Biến</div><div class="tbtn">+ Kết thúc</div>
+      <div class="tsep"></div>
+      <div class="tbtn">⊞ Tự sắp xếp</div><div class="tbtn">⚠ Kiểm tra lỗi <span style="color:var(--warn)">2</span></div>
+      <div class="spacer"></div>
+      <div class="pill ai">✦ Sinh nhánh</div>
+    </div>
+    <div class="appbody" style="grid-template-columns:1fr 228px">
+      <div class="pane graph">
+       <div class="gcanvas">
+        <svg class="edges" width="880" height="430" viewBox="0 0 880 430">
+          <defs>
+            <marker id="ag" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5a6376"/></marker>
+            <marker id="ao" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#e08b2a"/></marker>
+            <marker id="at" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#25a893"/></marker>
+          </defs>
+          <path d="M208,78  C248,78  248,126 286,126" stroke="#5a6376" stroke-width="1.7" fill="none" marker-end="url(#ag)"/>
+          <path d="M464,159 C501,159 501,70  536,70"  stroke="#e08b2a" stroke-width="1.7" fill="none" marker-end="url(#ao)"/>
+          <path d="M464,188 C501,188 501,206 536,206" stroke="#e08b2a" stroke-width="1.7" fill="none" marker-end="url(#ao)"/>
+          <path d="M120,116 C120,170 120,175 120,222"  stroke="#5a6376" stroke-width="1.7" fill="none" marker-end="url(#ag)"/>
+          <path d="M208,257 C248,257 248,295 286,295" stroke="#5a6376" stroke-width="1.7" fill="none" marker-end="url(#ag)"/>
+          <path d="M464,295 C501,295 501,345 536,345" stroke="#25a893" stroke-width="1.7" fill="none" marker-end="url(#at)"/>
+        </svg>
+
+        <div class="node n-scene" style="left:32px;top:42px">
+          <div class="nh">▣ Cảnh</div>
+          <div class="nb">Sân trường buổi sáng<br><span style="color:var(--tx3);font-size:10.5px">12 lời thoại · 2 nhân vật</span></div>
+        </div>
+        <div class="node n-choice sel" style="left:288px;top:86px;width:176px">
+          <div class="nh">◈ Lựa chọn</div>
+          <div class="nb">"Bắt chuyện với cô ấy?"</div>
+          <div class="chline"><span>Chào hỏi</span><span style="color:var(--ok);font-size:10px">affection +10</span></div>
+          <div class="chline"><span>Lặng lẽ đi qua</span><span style="color:var(--tx3);font-size:10px">—</span></div>
+        </div>
+        <div class="node n-scene" style="left:538px;top:34px">
+          <div class="nh">▣ Cảnh</div>
+          <div class="nb">Trò chuyện dưới gốc anh đào</div>
+        </div>
+        <div class="node n-scene" style="left:538px;top:170px">
+          <div class="nh">▣ Cảnh</div>
+          <div class="nb">Một mình trong lớp học</div>
+        </div>
+        <div class="node n-var" style="left:32px;top:224px">
+          <div class="nh">≡ Biến</div>
+          <div class="nb"><span style="font-family:var(--mono);font-size:11px">met_yuki = true</span></div>
+        </div>
+        <div class="node n-cond" style="left:288px;top:262px">
+          <div class="nh">◇ Điều kiện</div>
+          <div class="nb"><span style="font-family:var(--mono);font-size:11px">affection ≥ 50</span></div>
+        </div>
+        <div class="node n-end" style="left:538px;top:312px">
+          <div class="nh">★ Kết thúc</div>
+          <div class="nb">True End — Lời hứa</div>
+        </div>
+
+        <div class="minimap">
+          <div class="mmnode" style="left:8px;top:11px;width:19px;height:9px;background:#5f6fe8"></div>
+          <div class="mmnode" style="left:42px;top:20px;width:19px;height:12px;background:#e08b2a"></div>
+          <div class="mmnode" style="left:78px;top:9px;width:19px;height:9px;background:#5f6fe8"></div>
+          <div class="mmnode" style="left:78px;top:37px;width:19px;height:9px;background:#5f6fe8"></div>
+          <div class="mmnode" style="left:8px;top:48px;width:19px;height:7px;background:#9260d1"></div>
+          <div class="mmnode" style="left:42px;top:55px;width:19px;height:8px;background:#25a893"></div>
+          <div class="mmnode" style="left:78px;top:64px;width:19px;height:8px;background:#d1445c"></div>
+          <div style="position:absolute;left:4px;top:5px;width:70px;height:56px;border:1px solid var(--acc);border-radius:2px"></div>
+        </div>
+        <div class="zoomer"><span>−</span><span>82%</span><span>+</span><span>⊡</span></div>
+       </div>
+      </div>
+
+      <div class="pane">
+        <div class="panehead">Node · Lựa chọn</div>
+        <div class="panebody">
+          <div class="field"><div class="lbl">Câu hỏi hiển thị</div><div class="input">Bắt chuyện với cô ấy?</div></div>
+          <div class="field"><div class="lbl">Giới hạn thời gian</div>
+            <div style="display:flex;align-items:center;gap:9px"><div class="toggle off"></div><span style="font-size:11.5px;color:var(--tx3)">Tắt</span></div>
+          </div>
+          <div class="lbl" style="margin-top:16px">Các lựa chọn</div>
+          <div style="background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:9px;margin-bottom:7px">
+            <div class="input sm" style="margin-bottom:6px">Chào hỏi</div>
+            <div class="row">
+              <div class="input sm" style="flex:1.3">affection</div>
+              <div class="input sm">+10</div>
+            </div>
+          </div>
+          <div style="background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:9px">
+            <div class="input sm" style="margin-bottom:6px">Lặng lẽ đi qua</div>
+            <div class="row"><div class="input sm" style="color:var(--tx3)">— không đổi biến —</div></div>
+          </div>
+          <div class="btn g" style="margin-top:8px;font-weight:500">+ Thêm lựa chọn</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Bảng loại node</h3>
+  <p>Mỗi loại node có màu cố định, dùng nhất quán ở graph, minimap, cây chương bên trái và route map. Người dùng học màu một lần, dùng khắp nơi.</p>
+  <table class="box">
+    <tr><th style="width:130px">Node</th><th style="width:100px">Màu</th><th>Vai trò</th><th style="width:210px">Tương ứng ở Ren'Py</th></tr>
+    <tr><td><b>Cảnh</b></td><td><span style="color:#5f6fe8">■ Xanh tím</span></td><td>Một cảnh hoàn chỉnh: nền, nhân vật, chuỗi lời thoại. Nhấp đúp mở sang Scene Canvas.</td><td><code>label</code> + chuỗi lệnh</td></tr>
+    <tr><td><b>Lựa chọn</b></td><td><span style="color:#e08b2a">■ Cam</span></td><td>Người chơi chọn. Mỗi phương án là một cổng ra riêng, kéo dây tới node tiếp theo.</td><td><code>menu:</code></td></tr>
+    <tr><td><b>Điều kiện</b></td><td><span style="color:#25a893">■ Lục</span></td><td>Rẽ nhánh tự động theo biến. Dựng bằng dropdown, không phải gõ.</td><td><code>if / elif / else</code></td></tr>
+    <tr><td><b>Biến</b></td><td><span style="color:#9260d1">■ Tím</span></td><td>Gán hoặc thay đổi giá trị biến.</td><td><code>$ var = ...</code></td></tr>
+    <tr><td><b>Kết thúc</b></td><td><span style="color:#d1445c">■ Đỏ</span></td><td>Đánh dấu ending, có tên riêng để hiện trong Ending List.</td><td><code>return</code> (không có tên)</td></tr>
+    <tr><td><b>Nhảy / Nhãn</b></td><td><span style="color:var(--tx3)">■ Xám</span></td><td>Nhảy tới điểm khác, tránh dây nối rối khi truyện dài.</td><td><code>jump</code></td></tr>
+    <tr><td><b>Nhóm</b></td><td><span style="color:var(--tx3)">▢ Viền</span></td><td>Gom nhiều node thành khối gập được — bắt buộc khi truyện lên hàng trăm node.</td><td>không có</td></tr>
+  </table>
+
+  <div class="note w"><b>Kiểm tra lỗi tự động.</b> Nút cảnh báo trên toolbar quét liên tục và báo bốn loại lỗi: node mồ côi không ai trỏ tới, nhánh cụt không dẫn tới ending nào, biến được dùng nhưng chưa khai báo, và cổng ra chưa nối dây. Bấm vào cảnh báo là nhảy thẳng tới node có vấn đề.</div>
+</section>
+
+<!-- ========== 3. SCENE CANVAS ========== -->
+<section id="s3">
+  <h2><span class="num">03</span>Scene Canvas — Trình dựng cảnh</h2>
+  <p class="sub">Khung chính giữa là khung game thật, đúng tỷ lệ 16:9. Kéo nhân vật là nhân vật dịch chuyển; sửa hộp thoại là hộp thoại đổi ngay. Không có nút "build" nào giữa lúc sửa và lúc thấy kết quả.</p>
+
+  <div class="mock">
+    <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div><div class="t">Cảnh — Sân trường buổi sáng</div></div>
+    <div class="toolbar">
+      <div class="tbtn on">↕ Chọn</div><div class="tbtn">⊹ Thêm nhân vật</div><div class="tbtn">▨ Đổi nền</div><div class="tbtn">♪ Âm thanh</div><div class="tbtn">✧ Hiệu ứng</div>
+      <div class="tsep"></div><div class="tbtn">⌗ Lưới</div><div class="tbtn">⊢ Guide</div>
+      <div class="spacer"></div><div class="pill play">▶ Chạy cảnh này</div>
+    </div>
+    <div class="appbody" style="grid-template-columns:168px 1fr 214px">
+
+      <div class="pane">
+        <div class="panehead">Lớp</div>
+        <div class="panebody tree">
+          <div class="tr"><span class="ic">◉</span>Hiệu ứng · cánh hoa</div>
+          <div class="tr"><span class="ic">▭</span>Hộp thoại</div>
+          <div class="tr on"><span class="ic">☺</span>Yuki · vui</div>
+          <div class="tr"><span class="ic">☺</span>Mei · bình thường</div>
+          <div class="tr"><span class="ic">▨</span>Nền · sân trường</div>
+          <hr style="margin:11px 0;border-color:var(--line)">
+          <div class="panehead" style="height:auto;padding:0 0 6px;background:none;border:none">Âm thanh</div>
+          <div class="tr"><span class="ic">♪</span>BGM · morning.ogg</div>
+          <div class="tr"><span class="ic">≈</span>Ambient · chim hót</div>
+        </div>
+      </div>
+
+      <div class="pane" style="display:flex;flex-direction:column;background:var(--panel2)">
+        <div class="stage" style="flex:1">
+          <div class="frame">
+            <div class="sun"></div>
+            <div class="cloud" style="left:8%;top:22%;width:78px;height:19px"></div>
+            <div class="cloud" style="left:52%;top:13%;width:104px;height:23px"></div>
+            <div class="char c2"></div>
+            <div class="char c1"></div>
+            <div class="selbox" style="left:10.4%;bottom:0;width:120px;height:70.5%">
+              <i style="left:-4px;top:-4px"></i><i style="right:-4px;top:-4px"></i>
+              <i style="left:-4px;bottom:-4px"></i><i style="right:-4px;bottom:-4px"></i>
+            </div>
+            <div class="tbox">
+              <div class="tname">Yuki</div>
+              <div class="ttext">Cậu cũng đến sớm nhỉ? Mình cứ tưởng hôm nay chỉ có mình mình thôi đấy<span class="caret"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="tl">
+          <div class="tlc"><div class="who">Dẫn truyện</div><div class="txt">Ánh nắng đầu ngày…</div></div>
+          <div class="tlc on"><div class="who">Yuki · vui</div><div class="txt">Cậu cũng đến sớm nhỉ?</div></div>
+          <div class="tlc"><div class="who">Chủ thể</div><div class="txt">Ừ, hôm nay mình…</div></div>
+          <div class="tlc"><div class="who">Mei · ngạc nhiên</div><div class="txt">Ơ, hai người…</div></div>
+          <div class="tlc add">+</div>
+        </div>
+      </div>
+
+      <div class="pane">
+        <div class="panehead">Nhân vật · Yuki</div>
+        <div class="panebody">
+          <div class="field"><div class="lbl">Biểu cảm</div>
+            <div class="chips" style="margin:0">
+              <span class="chip">bình thường</span><span class="chip on">vui</span><span class="chip">buồn</span><span class="chip">ngượng</span><span class="chip">giận</span>
+            </div>
+          </div>
+          <div class="field"><div class="lbl">Vị trí đặt sẵn</div>
+            <div class="row"><div class="input sm" style="text-align:center">◧</div><div class="input sm" style="text-align:center;border-color:var(--acc);color:#c3b9ff">◨</div><div class="input sm" style="text-align:center">▣</div><div class="input sm" style="text-align:center">◪</div></div>
+          </div>
+          <div class="field"><div class="lbl">Toạ độ</div>
+            <div class="row"><div class="input sm">X 312</div><div class="input sm">Y 0</div></div>
+          </div>
+          <div class="field"><div class="lbl">Tỷ lệ · 104%</div><div class="slider"></div></div>
+          <div class="field"><div class="lbl">Độ sáng · 100%</div><div class="slider full"></div>
+            <div style="font-size:10.5px;color:var(--tx3);margin-top:-4px">Nhân vật không nói tự động giảm còn 62%</div>
+          </div>
+          <div class="field"><div class="lbl">Hiệu ứng vào</div><div class="input sm">Trượt từ trái · 0.4s</div></div>
+          <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;color:var(--tx2)">Lật ngang</span><div class="toggle off"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annot">
+    <div class="an"><div class="k">A</div><div class="t">Bảng lớp</div><div class="d">Thứ tự chồng lớp như Photoshop, kéo để đổi. Gộp cả âm thanh của cảnh vào đây để không phải mở panel khác.</div></div>
+    <div class="an"><div class="k">B</div><div class="t">Khung game</div><div class="d">Đúng tỷ lệ xuất bản. Có nam châm hút vào 5 vị trí chuẩn, nhưng vẫn kéo tự do được nếu tác giả muốn.</div></div>
+    <div class="an"><div class="k">C</div><div class="t">Dải lời thoại</div><div class="d">Chọn câu nào thì khung trên hiện đúng trạng thái sân khấu tại câu đó. Đây là thứ thay thế việc phải chạy game để kiểm tra.</div></div>
+    <div class="an"><div class="k">D</div><div class="t">Thuộc tính nhân vật</div><div class="d">Biểu cảm là chip bấm một cái đổi ngay. Độ sáng tự giảm cho nhân vật không nói — quy ước chuẩn của thể loại, bật sẵn.</div></div>
+  </div>
+</section>
+
+<!-- ========== 4. AI ========== -->
+<section id="s4">
+  <h2><span class="num">04</span>AI Co-writer</h2>
+  <p class="sub">AI không nằm ở một tab riêng mà trượt ra từ cạnh phải, ngay cạnh thứ đang sửa. Nguyên tắc bất di bất dịch: AI chỉ đề xuất, mọi thay đổi hiện dạng diff để tác giả duyệt từng dòng.</p>
+
+  <div class="mock">
+    <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div><div class="t">Cảnh — Sân trường buổi sáng · Trợ lý AI</div></div>
+    <div class="appbody" style="grid-template-columns:1fr 310px;min-height:470px">
+      <div class="pane" style="background:var(--panel2);display:flex;flex-direction:column">
+        <div class="stage" style="flex:1;padding:22px">
+          <div class="frame" style="max-width:440px;box-shadow:0 14px 40px rgba(0,0,0,.6)">
+            <div class="sun"></div>
+            <div class="char c1"></div>
+            <div class="tbox">
+              <div class="tname">Yuki</div>
+              <div class="ttext">Cậu cũng đến sớm nhỉ?</div>
+            </div>
+          </div>
+        </div>
+        <div class="tl">
+          <div class="tlc on"><div class="who">Yuki · vui</div><div class="txt">Cậu cũng đến sớm nhỉ?</div></div>
+          <div class="tlc" style="border-style:dashed;border-color:var(--acc);background:rgba(124,108,255,.07)"><div class="who" style="color:#b3a6ff">✦ AI đề xuất</div><div class="txt">Mình cứ tưởng…</div></div>
+          <div class="tlc add">+</div>
+        </div>
+      </div>
+
+      <div class="pane">
+        <div class="panehead">✦ Trợ lý AI <span style="text-transform:none;letter-spacing:0;color:var(--tx3)">Claude Sonnet</span></div>
+        <div class="panebody">
+          <div class="chips">
+            <span class="chip on">Viết tiếp</span><span class="chip">Viết lại</span><span class="chip">Sinh nhánh</span><span class="chip">Kiểm tra nhất quán</span><span class="chip">Dịch</span>
+          </div>
+
+          <div class="aimsg me">Viết tiếp 2 câu cho Yuki, giữ giọng vui vẻ hơi trêu chọc.</div>
+
+          <div class="aimsg">
+            Dựa trên hồ sơ giọng của <b>Yuki</b> (hoạt bát, hay trêu, dùng câu ngắn) và bối cảnh sân trường buổi sáng:
+            <div class="diff">
+              <div class="dplus">+ Mình cứ tưởng hôm nay chỉ có mình mình thôi đấy.</div>
+              <div class="dplus">+ Hay là… cậu cố tình đến sớm để gặp mình?</div>
+            </div>
+            <div class="btnrow">
+              <div class="btn ok">✓ Chấp nhận</div><div class="btn g">Sửa</div><div class="btn g">Thử lại</div>
+            </div>
+          </div>
+
+          <div class="aimsg" style="border-color:rgba(255,182,72,.3);background:rgba(255,182,72,.06)">
+            <div style="color:var(--warn);font-weight:600;font-size:11.5px;margin-bottom:5px">⚠ Phát hiện mâu thuẫn</div>
+            Ở Chương 2 · <i>Thư viện</i>, Yuki nói cô ấy <b>ghét dậy sớm</b>. Cảnh này cô ấy đến trường sớm mà không có lời giải thích.
+            <div class="btnrow"><div class="btn g" style="font-size:11px">Xem cảnh đó</div><div class="btn g" style="font-size:11px">Bỏ qua</div></div>
+          </div>
+
+          <div class="field" style="margin-top:14px">
+            <div class="lbl">Ngữ cảnh AI đang thấy</div>
+            <div style="font-size:11px;color:var(--tx3);line-height:1.7">
+              ✓ Hồ sơ giọng nhân vật (3)<br>
+              ✓ 12 lời thoại của cảnh hiện tại<br>
+              ✓ Tóm tắt cốt truyện đã chốt<br>
+              ✓ Biến và flag hiện hành (8)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note g"><b>Vì sao luôn hiện diff.</b> Công cụ AI dễ mất lòng tin nhất ở khoảnh khắc nó sửa mất một câu mà tác giả tâm đắc. Bắt buộc duyệt từng dòng khiến AI không bao giờ gây mất mát, và tác giả dám bấm thử nhiều hơn — dùng nhiều hơn chứ không phải ngược lại.</div>
+</section>
+
+<!-- ========== 5. NHÂN VẬT & ASSET ========== -->
+<section id="s5">
+  <h2><span class="num">05</span>Nhân vật &amp; Thư viện Asset</h2>
+  <p class="sub">Nhân vật là thực thể trung tâm, không phải chỉ là một biến tên. Mỗi nhân vật mang theo bộ biểu cảm, màu tên riêng, và hồ sơ giọng văn — chính hồ sơ này là thứ AI đọc trước khi viết thoại cho họ.</p>
+
+  <div class="mock">
+    <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div><div class="t">Nhân vật — Yuki Amamiya</div></div>
+    <div class="appbody" style="grid-template-columns:154px 1fr 232px">
+      <div class="pane">
+        <div class="panehead">Nhân vật</div>
+        <div class="panebody tree">
+          <div class="tr on"><span class="dot" style="background:#ff6ba8"></span>Yuki</div>
+          <div class="tr"><span class="dot" style="background:#6bb6ff"></span>Mei</div>
+          <div class="tr"><span class="dot" style="background:#ffb648"></span>Kaito</div>
+          <div class="tr"><span class="dot" style="background:#8b90a0"></span>Thầy Tanaka</div>
+          <div class="tr" style="color:var(--tx3);margin-top:6px"><span class="ic">+</span>Thêm nhân vật</div>
+        </div>
+      </div>
+      <div class="pane" style="background:var(--panel2)">
+        <div class="panehead">Bộ biểu cảm · kéo ảnh vào từng ô</div>
+        <div class="panebody">
+          <div class="grid g5">
+            <div class="card on"><div class="thumb" style="background:linear-gradient(165deg,#e8c4a8,#c98f7a)">bình thường</div><div class="cap">normal.png</div></div>
+            <div class="card"><div class="thumb" style="background:linear-gradient(165deg,#f0d4b0,#d99f82)">vui</div><div class="cap">happy.png</div></div>
+            <div class="card"><div class="thumb" style="background:linear-gradient(165deg,#c8b8d0,#9585a8)">buồn</div><div class="cap">sad.png</div></div>
+            <div class="card"><div class="thumb" style="background:linear-gradient(165deg,#f0b8b8,#d08585)">ngượng</div><div class="cap">shy.png</div></div>
+            <div class="card"><div class="thumb" style="background:linear-gradient(165deg,#e0a0a0,#b86868)">giận</div><div class="cap">angry.png</div></div>
+            <div class="card"><div class="thumb" style="background:var(--panel3);border:1px dashed var(--line2);color:var(--tx3)">+</div><div class="cap" style="color:var(--tx3)">thêm</div></div>
+          </div>
+
+          <h3 style="margin-top:22px;font-size:13px">Thư viện Asset</h3>
+          <div class="grid g5">
+            <div class="card"><div class="thumb" style="background:linear-gradient(170deg,#2c3f63,#8a7ba8)">sân trường</div><div class="cap">bg_school.png</div></div>
+            <div class="card"><div class="thumb" style="background:linear-gradient(170deg,#3a2f4a,#6b5a7a)">thư viện</div><div class="cap">bg_library.png</div></div>
+            <div class="card"><div class="thumb" style="background:linear-gradient(170deg,#c47a5a,#f0b088)">hoàng hôn</div><div class="cap">bg_sunset.png</div></div>
+            <div class="card"><div class="thumb" style="background:var(--panel3);color:var(--tx2)">♪ BGM</div><div class="cap">morning.ogg</div></div>
+            <div class="card" style="border-color:rgba(255,182,72,.4)"><div class="thumb" style="background:rgba(255,182,72,.1);color:var(--warn)">⚠ thiếu</div><div class="cap" style="color:var(--warn)">bg_rain.png</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="pane">
+        <div class="panehead">Hồ sơ nhân vật</div>
+        <div class="panebody">
+          <div class="field"><div class="lbl">Tên hiển thị · VI</div><div class="input">Yuki</div></div>
+          <div class="field"><div class="lbl">Tên hiển thị · JA</div><div class="input">ゆき</div></div>
+          <div class="field"><div class="lbl">Màu tên trong hộp thoại</div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:22px;height:22px;border-radius:5px;background:#ff6ba8;border:1px solid var(--line2)"></div><div class="input sm" style="flex:1">#FF6BA8</div></div>
+          </div>
+          <div class="field"><div class="lbl">Sprite phân lớp</div>
+            <div style="display:flex;align-items:center;gap:9px"><div class="toggle"></div><span style="font-size:11.5px;color:var(--tx3)">Thân + mặt tách riêng</span></div>
+          </div>
+          <div class="field">
+            <div class="lbl">✦ Hồ sơ giọng — AI dùng làm ngữ cảnh</div>
+            <div class="input" style="min-height:82px;font-size:11.5px;line-height:1.6;color:var(--tx2)">Hoạt bát, hay trêu chọc nhẹ. Dùng câu ngắn, ít khi nói quá hai câu liền. Gọi nhân vật chính là "cậu". Khi ngại thì nói lảng sang chuyện khác thay vì im lặng.</div>
+          </div>
+          <div class="btn g" style="font-weight:500">✦ Để AI viết giúp hồ sơ này</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 6. AI PROVIDERS ========== -->
+<section id="s6">
+  <h2><span class="num">06</span>Cấu hình AI Providers</h2>
+  <p class="sub">VNdev không khoá vào hãng AI nào. Tác giả thêm bao nhiêu provider tùy thích, và quan trọng hơn — gán model khác nhau cho từng loại việc, vì viết thoại và dịch hàng loạt có yêu cầu hoàn toàn khác nhau về chất lượng lẫn chi phí.</p>
+
+  <div class="mock">
+    <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div><div class="t">Cài đặt — AI Providers</div></div>
+    <div class="appbody" style="grid-template-columns:172px 1fr">
+      <div class="pane">
+        <div class="panehead">Cài đặt</div>
+        <div class="panebody tree">
+          <div class="tr"><span class="ic">◈</span>Chung</div>
+          <div class="tr"><span class="ic">▤</span>Giao diện</div>
+          <div class="tr on"><span class="ic">✦</span>AI Providers</div>
+          <div class="tr"><span class="ic">⌨</span>Phím tắt</div>
+          <div class="tr"><span class="ic">↗</span>Xuất bản</div>
+        </div>
+      </div>
+      <div class="pane" style="background:var(--panel2)">
+        <div class="panebody" style="padding:14px 16px">
+
+          <div class="lbl">Nhà cung cấp đã kết nối</div>
+          <table class="box" style="margin-top:7px">
+            <tr><th style="width:150px">Provider</th><th style="width:118px">API Key</th><th style="width:74px">Trạng thái</th><th>Model khả dụng</th></tr>
+            <tr><td><b style="color:var(--tx)">Anthropic</b> · Claude</td><td><span style="font-family:var(--mono);font-size:11px">sk-ant-••••4f2a</span></td><td><span style="color:var(--ok)">● Hoạt động</span></td><td><span style="color:var(--tx3)">8 model · tự cập nhật</span></td></tr>
+            <tr><td><b style="color:var(--tx)">OpenAI</b> · ChatGPT</td><td><span style="font-family:var(--mono);font-size:11px">sk-proj-••••9c1e</span></td><td><span style="color:var(--ok)">● Hoạt động</span></td><td><span style="color:var(--tx3)">12 model · tự cập nhật</span></td></tr>
+            <tr><td><b style="color:var(--tx)">Google</b> · Gemini</td><td><span style="font-family:var(--mono);font-size:11px">AIza••••7b3d</span></td><td><span style="color:var(--ok)">● Hoạt động</span></td><td><span style="color:var(--tx3)">6 model · tự cập nhật</span></td></tr>
+            <tr><td><b style="color:var(--tx)">DeepSeek</b></td><td><span style="font-family:var(--mono);font-size:11px">sk-••••2e88</span></td><td><span style="color:var(--ok)">● Hoạt động</span></td><td><span style="color:var(--tx3)">3 model</span></td></tr>
+            <tr><td><b style="color:var(--tx)">Ollama</b> · chạy local</td><td><span style="color:var(--tx3)">không cần key</span></td><td><span style="color:var(--warn)">● Chưa chạy</span></td><td><span style="color:var(--tx3)">localhost:11434</span></td></tr>
+            <tr><td colspan="4" style="color:var(--tx3)">+ Thêm provider &nbsp;·&nbsp; Grok · Mistral · OpenRouter · endpoint tương thích OpenAI</td></tr>
+          </table>
+
+          <div class="lbl" style="margin-top:20px">Gán model theo tác vụ</div>
+          <table class="box" style="margin-top:7px">
+            <tr><th style="width:230px">Tác vụ</th><th style="width:230px">Model</th><th>Lý do chọn</th></tr>
+            <tr><td>Viết thoại · sinh nhánh truyện</td><td><span style="color:#c3b9ff">Claude Sonnet</span></td><td>Chất lượng văn và giữ giọng nhân vật tốt nhất</td></tr>
+            <tr><td>Dịch hàng loạt (5 ngôn ngữ)</td><td><span style="color:#c3b9ff">DeepSeek Chat</span></td><td>Rẻ hơn nhiều lần, đủ tốt cho dịch có đối chiếu</td></tr>
+            <tr><td>Kiểm tra nhất quán toàn kịch bản</td><td><span style="color:#c3b9ff">Gemini Pro</span></td><td>Context window lớn, nuốt được cả kịch bản một lần</td></tr>
+            <tr><td>Gợi ý ngắn khi đang gõ</td><td><span style="color:#c3b9ff">GPT-4o mini</span></td><td>Độ trễ thấp, giá rẻ, chỉ cần vài câu</td></tr>
+            <tr><td>Dự phòng khi provider chính lỗi</td><td><span style="color:#c3b9ff">OpenAI GPT-4o</span></td><td>Tự chuyển sang khi hết quota, không gián đoạn</td></tr>
+          </table>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px">
+            <div style="background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:13px 15px">
+              <div class="lbl">Chi phí dự án này</div>
+              <div style="font-size:23px;font-weight:700;color:var(--tx);letter-spacing:-.5px">$4.82</div>
+              <div style="font-size:11px;color:var(--tx3);margin-top:3px">1.24M token · 30 ngày qua</div>
+              <div style="margin-top:11px">
+                <div class="barlbl"><span class="nm" style="width:64px;font-size:11px">Claude</span><span class="bw"><div class="bar" style="width:74%;background:var(--acc);height:16px;font-size:10px">$3.10</div></span></div>
+                <div class="barlbl"><span class="nm" style="width:64px;font-size:11px">DeepSeek</span><span class="bw"><div class="bar" style="width:22%;background:#4a8fd8;height:16px;font-size:10px">$0.41</div></span></div>
+                <div class="barlbl"><span class="nm" style="width:64px;font-size:11px">Gemini</span><span class="bw"><div class="bar" style="width:40%;background:#3ecf8e;height:16px;font-size:10px;color:#05130c">$1.31</div></span></div>
+              </div>
+            </div>
+            <div style="background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:13px 15px">
+              <div class="lbl">Bảo mật khóa</div>
+              <div style="font-size:12px;color:var(--tx2);line-height:1.75;margin-top:5px">
+                <span style="color:var(--ok)">✓</span> Lưu trong Windows Credential Manager<br>
+                <span style="color:var(--ok)">✓</span> Không nằm trong file dự án<br>
+                <span style="color:var(--ok)">✓</span> Không thể commit nhầm lên Git<br>
+                <span style="color:var(--ok)">✓</span> Không gửi về máy chủ VNdev
+              </div>
+              <div style="font-size:11px;color:var(--tx3);margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">Mọi yêu cầu AI đi thẳng từ máy bạn tới nhà cung cấp. VNdev không có máy chủ trung gian.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 7. EXPORT ========== -->
+<section id="s7">
+  <h2><span class="num">07</span>Xuất bản</h2>
+  <p class="sub">Màn hình export là nơi lợi thế kiến trúc của VNdev hiện ra thành con số người dùng cảm nhận được ngay: dung lượng và thời gian build.</p>
+
+  <div class="mock" style="max-width:700px">
+    <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div><div class="t">Xuất bản — Sakura no Kioku</div></div>
+    <div style="padding:22px 26px;background:var(--panel)">
+      <div class="lbl">Nền tảng đích</div>
+      <div class="grid g4" style="margin:8px 0 18px">
+        <div class="card on" style="padding:12px;text-align:center"><div style="font-size:19px;margin-bottom:4px">⊞</div><div style="font-size:12px;color:var(--tx);font-weight:600">Windows</div><div style="font-size:10.5px;color:var(--tx3)">.exe · x64</div></div>
+        <div class="card" style="padding:12px;text-align:center"><div style="font-size:19px;margin-bottom:4px">✦</div><div style="font-size:12px;color:var(--tx);font-weight:600">macOS</div><div style="font-size:10.5px;color:var(--tx3)">.app · universal</div></div>
+        <div class="card on" style="padding:12px;text-align:center"><div style="font-size:19px;margin-bottom:4px">◈</div><div style="font-size:12px;color:var(--tx);font-weight:600">Web</div><div style="font-size:10.5px;color:var(--tx3)">HTML tĩnh</div></div>
+        <div class="card" style="padding:12px;text-align:center;opacity:.5"><div style="font-size:19px;margin-bottom:4px">▯</div><div style="font-size:12px;color:var(--tx);font-weight:600">Android</div><div style="font-size:10.5px;color:var(--tx3)">.apk · sắp có</div></div>
+      </div>
+
+      <div class="lbl">Tùy chọn</div>
+      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:13px 15px;margin:8px 0 18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0"><span style="font-size:12.5px;color:var(--tx2)">Nén ảnh sang WebP</span><div class="toggle"></div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0"><span style="font-size:12.5px;color:var(--tx2)">Nén âm thanh sang Opus</span><div class="toggle"></div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0"><span style="font-size:12.5px;color:var(--tx2)">Đóng gói dữ liệu vào .vnpack</span><div class="toggle"></div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0"><span style="font-size:12.5px;color:var(--tx2)">Kèm ngôn ngữ: VI, EN, JA</span><div class="toggle"></div></div>
+      </div>
+
+      <div class="lbl">Ước tính dung lượng</div>
+      <div style="margin:10px 0 4px">
+        <div class="barlbl"><span class="nm">VNdev</span><span class="bw"><div class="bar" style="width:19%;background:linear-gradient(90deg,var(--acc),var(--acc2))">11.4 MB</div></span></div>
+        <div class="barlbl"><span class="nm">Ren'Py</span><span class="bw"><div class="bar" style="width:100%;background:var(--panel3);color:var(--tx2)">≈ 287 MB &nbsp;— cùng nội dung</div></span></div>
+      </div>
+      <div style="font-size:11.5px;color:var(--tx3);margin-bottom:18px">Vỏ Player 8.2 MB + dữ liệu game 1.1 MB + asset đã nén 2.1 MB. Thời gian build ước tính <b style="color:var(--ok)">6 giây</b>.</div>
+
+      <div style="display:flex;gap:9px;justify-content:flex-end">
+        <div class="btn g">Huỷ</div>
+        <div class="btn p" style="padding:8px 22px">↗ Xuất bản</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Cơ chế bên dưới</h3>
+  <p>Điều làm nên con số 11.4 MB không phải thủ thuật nén, mà là kiến trúc: không có bước biên dịch nào khi export. Vỏ Player đã được compile sẵn từ trước, việc export chỉ là ghép file.</p>
+  <div class="flow">
+    <div class="frow">
+      <div class="fbox"><div class="ft">Project folder</div><div class="fd">JSON + asset gốc</div></div>
+      <div class="farr">→</div>
+      <div class="fbox"><div class="ft">Nén asset</div><div class="fd">WebP · Opus</div></div>
+      <div class="farr">→</div>
+      <div class="fbox"><div class="ft">Gói dữ liệu</div><div class="fd">game.vnpack</div></div>
+      <div class="farr">→</div>
+      <div class="fbox acc"><div class="ft">Ghép vỏ Player</div><div class="fd">copy binary có sẵn</div></div>
+      <div class="farr">→</div>
+      <div class="fbox ok"><div class="ft">MyGame.exe</div><div class="fd">chạy được ngay</div></div>
+    </div>
+    <div style="text-align:center;margin-top:18px;font-size:11.5px;color:var(--tx3)">Không có bước compile — đó là lý do chỉ mất 6 giây thay vì vài phút.</div>
+  </div>
+</section>
+
+<!-- ========== 8. RUNTIME ========== -->
+<section id="s8">
+  <h2><span class="num">08</span>Game Runtime — thứ người chơi thấy</h2>
+  <p class="sub">Giao diện game mặc định phải đẹp ngay khi chưa tuỳ biến gì. Đây là điểm Ren'Py yếu nhất: template mặc định của nó lộ liễu tới mức người chơi nhận ra engine từ giây đầu tiên.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="mock" style="margin:0">
+      <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div><div class="t">Đang chơi — lời thoại</div></div>
+      <div style="padding:14px;background:#0a0b0f">
+        <div class="frame" style="max-width:none">
+          <div class="sun"></div>
+          <div class="cloud" style="left:10%;top:20%;width:70px;height:17px"></div>
+          <div class="char c2"></div><div class="char c1"></div>
+          <div style="position:absolute;left:0;right:0;top:0;height:30px;background:linear-gradient(rgba(0,0,0,.4),transparent);display:flex;align-items:center;justify-content:flex-end;padding:0 11px;gap:11px;font-size:9.5px;color:rgba(255,255,255,.7)">
+            <span>AUTO</span><span>SKIP</span><span>LỊCH SỬ</span><span>LƯU</span><span>⚙</span>
+          </div>
+          <div class="tbox">
+            <div class="tname">Yuki</div>
+            <div class="ttext">Mình cứ tưởng hôm nay chỉ có mình mình thôi đấy.<span class="caret"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock" style="margin:0">
+      <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div><div class="t">Đang chơi — lựa chọn</div></div>
+      <div style="padding:14px;background:#0a0b0f">
+        <div class="frame" style="max-width:none">
+          <div class="sun"></div>
+          <div class="char c1" style="opacity:.55"></div>
+          <div style="position:absolute;inset:0;background:rgba(6,8,16,.42);backdrop-filter:blur(2px)"></div>
+          <div style="position:absolute;left:14%;right:14%;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:9px">
+            <div style="background:rgba(124,108,255,.85);border:1px solid rgba(255,255,255,.28);border-radius:8px;padding:9px;text-align:center;font-size:12px;color:#fff;font-weight:600">Chào hỏi cô ấy</div>
+            <div style="background:rgba(14,16,26,.8);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:9px;text-align:center;font-size:12px;color:#e0e4f0">Lặng lẽ đi qua</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g4" style="margin-top:16px">
+    <div class="card"><div class="thumb" style="aspect-ratio:16/10;background:linear-gradient(150deg,#1a1d2e,#2e3350);font-size:11px;color:var(--tx2)">Màn hình chính</div><div class="cap">Title</div></div>
+    <div class="card"><div class="thumb" style="aspect-ratio:16/10;background:linear-gradient(150deg,#1a1d2e,#2a2f45);font-size:11px;color:var(--tx2)">4 ô lưu · có ảnh</div><div class="cap">Save / Load</div></div>
+    <div class="card"><div class="thumb" style="aspect-ratio:16/10;background:linear-gradient(150deg,#221a2e,#3a2a48);font-size:11px;color:var(--tx2)">CG đã mở khoá</div><div class="cap">Gallery</div></div>
+    <div class="card"><div class="thumb" style="aspect-ratio:16/10;background:linear-gradient(150deg,#1a222e,#28384a);font-size:11px;color:var(--tx2)">7 ending · 3 đã đạt</div><div class="cap">Ending List</div></div>
+  </div>
+
+  <div class="note"><b>Chi tiết nhỏ mà quan trọng.</b> Thanh điều khiển trên cùng (AUTO / SKIP / LỊCH SỬ / LƯU) mờ dần khi người chơi không di chuột trong 3 giây, và hiện lại khi chạm vào vùng trên. Người chơi visual novel dành hàng giờ nhìn màn hình này — mọi thứ không phải nội dung đều phải biết cách tự lùi ra.</div>
+</section>
+
+<!-- ========== 9. KIẾN TRÚC ========== -->
+<section id="s9">
+  <h2><span class="num">09</span>Kiến trúc &amp; Luồng dữ liệu</h2>
+  <p class="sub">Nguyên tắc trung tâm: <strong>runtime chỉ có một bản</strong>, dùng chung cho cả ba nơi game có thể chạy. Đây là thứ bảo đảm không bao giờ có chuyện "chạy trong editor thì được mà export ra thì lỗi".</p>
+
+  <h3>Luồng dữ liệu</h3>
+  <div class="flow">
+    <div class="frow">
+      <div class="fbox acc"><div class="ft">VNdev Editor</div><div class="fd">Tauri + React<br>Story Graph · Scene Canvas</div></div>
+    </div>
+    <div class="fvert">↓ &nbsp;đọc / ghi&nbsp; ↓</div>
+    <div class="frow">
+      <div class="fbox" style="min-width:330px;border-color:var(--acc2)"><div class="ft">Project Folder <span style="color:var(--tx3);font-weight:400">(.vndev)</span></div><div class="fd">project.json · scenes/*.json · assets/ · i18n/<br><span style="color:var(--ok)">Nguồn sự thật duy nhất — Git-friendly</span></div></div>
+    </div>
+    <div class="fvert">↓ &nbsp;@vndev/core đọc &amp; kiểm tra schema&nbsp; ↓</div>
+    <div class="frow">
+      <div class="fbox ok" style="min-width:300px"><div class="ft">@vndev/runtime</div><div class="fd">Engine PixiJS — MỘT bản duy nhất</div></div>
+    </div>
+    <div class="fvert">↓</div>
+    <div class="frow">
+      <div class="fbox"><div class="ft">Preview</div><div class="fd">trong editor</div></div>
+      <div class="fbox"><div class="ft">Web build</div><div class="fd">itch.io · Vercel</div></div>
+      <div class="fbox"><div class="ft">Player .exe</div><div class="fd">vỏ Tauri ~8MB</div></div>
+    </div>
+  </div>
+
+  <h3>Cấu trúc monorepo</h3>
+  <pre><span class="c">D:\VNdev\</span>
+├── apps/
+│   ├── <span class="k">editor/</span>              <span class="c"># Tauri app — trình soạn thảo</span>
+│   │   ├── src/
+│   │   │   ├── features/
+│   │   │   │   ├── story-graph/    <span class="c"># React Flow</span>
+│   │   │   │   ├── scene-canvas/   <span class="c"># PixiJS + lớp chỉnh sửa</span>
+│   │   │   │   ├── characters/
+│   │   │   │   ├── asset-library/
+│   │   │   │   ├── ai/             <span class="c"># adapter đa provider</span>
+│   │   │   │   └── export/
+│   │   │   ├── stores/             <span class="c"># Zustand + Immer (undo/redo)</span>
+│   │   │   └── i18n/               <span class="c"># en · vi · ja · zh · th</span>
+│   │   └── src-tauri/              <span class="c"># Rust: file I/O · keychain · đóng gói</span>
+│   └── <span class="k">player/</span>              <span class="c"># Tauri app — vỏ cho game xuất ra</span>
+├── packages/
+│   ├── <span class="k">core/</span>                <span class="c"># data model + JSON schema + validate</span>
+│   ├── <span class="k">runtime/</span>             <span class="c"># engine PixiJS — DÙNG CHUNG</span>
+│   └── <span class="k">ui/</span>                  <span class="c"># design system</span>
+├── examples/                   <span class="c"># dự án mẫu</span>
+└── docs/</pre>
+
+  <div class="note"><b>Vì sao monorepo.</b> Hai package <code>core</code> và <code>runtime</code> bắt buộc phải giống hệt nhau giữa editor, web build và player. Nếu tách thành ba repo riêng, sớm muộn chúng sẽ lệch phiên bản và sinh ra đúng cái lỗi mà kiến trúc này sinh ra để tránh.</p></div>
+</section>
+
+<!-- ========== 10. SCHEMA ========== -->
+<section id="s10">
+  <h2><span class="num">10</span>Schema dữ liệu</h2>
+  <p class="sub">Toàn bộ dự án là JSON có schema chặt. Định dạng này phải dễ đọc bằng mắt và diff được trên Git — đó là ràng buộc thiết kế, không phải hệ quả tình cờ.</p>
+
+  <h3>Một node Cảnh</h3>
+  <pre>{
+  <span class="k">"id"</span>: <span class="s">"scene_schoolyard_morning"</span>,
+  <span class="k">"type"</span>: <span class="s">"scene"</span>,
+  <span class="k">"position"</span>: { <span class="k">"x"</span>: <span class="n">120</span>, <span class="k">"y"</span>: <span class="n">80</span> },       <span class="c">// vị trí trên graph</span>
+  <span class="k">"background"</span>: <span class="s">"bg_school.png"</span>,
+  <span class="k">"bgm"</span>: { <span class="k">"src"</span>: <span class="s">"morning.ogg"</span>, <span class="k">"fadeIn"</span>: <span class="n">1.5</span> },
+  <span class="k">"stage"</span>: [
+    { <span class="k">"char"</span>: <span class="s">"yuki"</span>, <span class="k">"expr"</span>: <span class="s">"happy"</span>, <span class="k">"x"</span>: <span class="n">312</span>, <span class="k">"scale"</span>: <span class="n">1.04</span>,
+      <span class="k">"enter"</span>: { <span class="k">"type"</span>: <span class="s">"slideLeft"</span>, <span class="k">"dur"</span>: <span class="n">0.4</span> } },
+    { <span class="k">"char"</span>: <span class="s">"mei"</span>,  <span class="k">"expr"</span>: <span class="s">"normal"</span>, <span class="k">"x"</span>: <span class="n">824</span>, <span class="k">"dim"</span>: <span class="n">0.62</span> }
+  ],
+  <span class="k">"lines"</span>: [
+    { <span class="k">"speaker"</span>: <span class="k">null</span>,   <span class="k">"text"</span>: { <span class="k">"vi"</span>: <span class="s">"Ánh nắng đầu ngày…"</span> } },
+    { <span class="k">"speaker"</span>: <span class="s">"yuki"</span>, <span class="k">"expr"</span>: <span class="s">"happy"</span>,
+      <span class="k">"text"</span>: { <span class="k">"vi"</span>: <span class="s">"Cậu cũng đến sớm nhỉ?"</span>,
+                <span class="k">"ja"</span>: <span class="s">"{ruby:早|はや}いね、キミも。"</span> },
+      <span class="k">"sfx"</span>: <span class="s">"birds.ogg"</span> }
+  ],
+  <span class="k">"next"</span>: <span class="s">"choice_greet_or_pass"</span>
+}</pre>
+
+  <h3>Một node Lựa chọn</h3>
+  <pre>{
+  <span class="k">"id"</span>: <span class="s">"choice_greet_or_pass"</span>,
+  <span class="k">"type"</span>: <span class="s">"choice"</span>,
+  <span class="k">"prompt"</span>: { <span class="k">"vi"</span>: <span class="s">"Bắt chuyện với cô ấy?"</span> },
+  <span class="k">"options"</span>: [
+    { <span class="k">"text"</span>: { <span class="k">"vi"</span>: <span class="s">"Chào hỏi"</span> },
+      <span class="k">"effects"</span>: [{ <span class="k">"var"</span>: <span class="s">"affection_yuki"</span>, <span class="k">"op"</span>: <span class="s">"add"</span>, <span class="k">"value"</span>: <span class="n">10</span> }],
+      <span class="k">"next"</span>: <span class="s">"scene_sakura_talk"</span> },
+    { <span class="k">"text"</span>: { <span class="k">"vi"</span>: <span class="s">"Lặng lẽ đi qua"</span> },
+      <span class="k">"effects"</span>: [],
+      <span class="k">"next"</span>: <span class="s">"scene_alone_class"</span> }
+  ]
+}</pre>
+
+  <div class="note g"><b>Vì sao text luôn là object đa ngôn ngữ.</b> Nếu ban đầu để <code>"text": "..."</code> rồi sau mới thêm đa ngôn ngữ, ta sẽ phải migrate toàn bộ dự án của người dùng. Thiết kế đúng ngay từ đầu tốn thêm vài ký tự nhưng tránh được một lần phá vỡ tương thích.</div>
+</section>
+
+<!-- ========== 11. SO SÁNH ========== -->
+<section id="s11">
+  <h2><span class="num">11</span>So sánh trực tiếp với Ren'Py</h2>
+  <p class="sub">Bảng này là thước đo để kiểm chứng thiết kế. Nếu một cột nào đó VNdev không thắng rõ ràng, phần thiết kế tương ứng cần làm lại.</p>
+
+  <table class="box">
+    <tr><th style="width:190px">Tiêu chí</th><th style="width:38%">Ren'Py</th><th>VNdev</th></tr>
+    <tr><td><b>Dựng cốt truyện</b></td><td>Viết file <code>.rpy</code>, cấu trúc nhánh nằm rải rác trong text</td><td>Kéo thả node trên canvas, nhìn toàn cảnh truyện như bản đồ</td></tr>
+    <tr><td><b>Đặt nhân vật</b></td><td>Sửa code → lưu → chạy game → nhìn → sửa tiếp</td><td>Kéo trực tiếp trên khung game, thấy ngay tức thì</td></tr>
+    <tr><td><b>Rào cản người mới</b></td><td>Phải học cú pháp riêng và luật thụt lề</td><td>Không cần viết dòng code nào</td></tr>
+    <tr><td><b>Dung lượng game rỗng</b></td><td>≈ 250–300 MB</td><td><span style="color:var(--ok)">≈ 10 MB</span></td></tr>
+    <tr><td><b>Thời gian build</b></td><td>1–3 phút</td><td><span style="color:var(--ok)">dưới 10 giây</span></td></tr>
+    <tr><td><b>Làm việc nhóm qua Git</b></td><td>Diff được nhưng xung đột khó xử</td><td>JSON tách file theo cảnh, merge gọn</td></tr>
+    <tr><td><b>Ruby text (furigana)</b></td><td>Làm được nhưng rất khổ sở</td><td>Hỗ trợ sẵn trong schema và editor</td></tr>
+    <tr><td><b>Giao diện game mặc định</b></td><td>Nhận ra engine ngay từ giây đầu</td><td>Bộ theme hiện đại, chỉnh trực quan</td></tr>
+    <tr><td><b>Hỗ trợ AI</b></td><td>Không có</td><td>Nhúng sâu, đa provider, luôn hiện diff</td></tr>
+    <tr><td><b>Độ chín &amp; hệ sinh thái</b></td><td><span style="color:var(--ok)">20 năm, cộng đồng khổng lồ, vô số plugin</span></td><td><span style="color:var(--warn)">Mới — đây là điểm yếu thật, không né tránh</span></td></tr>
+  </table>
+
+  <div class="note w"><b>Điểm yếu cần thừa nhận.</b> Ren'Py có 20 năm tích luỹ: hàng nghìn game đã xuất bản, tài liệu dày, plugin cho mọi nhu cầu ngách, và quan trọng nhất là đã được kiểm chứng qua các dự án thương mại lớn. VNdev thắng ở trải nghiệm và kiến trúc, nhưng sẽ thua ở độ chín trong vài năm đầu. Thiết kế phải bù lại bằng cách làm tốt tuyệt đối phần lõi thay vì chạy đua tính năng ngách.</div>
+</section>
+
+<div class="foot">
+  VNdev · Bản thiết kế UI/UX — Bước 3 trong quy trình Spec → MD → Design → Code → Deploy<br>
+  Tài liệu này là bản vẽ, không phải code. Bước tiếp theo: dựng cấu trúc dự án và triển khai theo đúng bản vẽ này.
+</div>
+
+</main>
+</div>
+
+<script>
+const links=[...document.querySelectorAll('.nav a')];
+const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+function sync(){
+  let i=secs.findIndex((s,k)=>{
+    const r=s.getBoundingClientRect();
+    return r.top<=140 && (k===secs.length-1 || secs[k+1].getBoundingClientRect().top>140);
+  });
+  if(i<0)i=0;
+  links.forEach((a,k)=>a.classList.toggle('on',k===i));
+}
+document.addEventListener('scroll',sync,{passive:true});
+links.forEach(a=>a.addEventListener('click',e=>{
+  e.preventDefault();
+  document.querySelector(a.getAttribute('href')).scrollIntoView({behavior:'smooth'});
+}));
+sync();
+</script>
+</body>
+</html>

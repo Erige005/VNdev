@@ -1,0 +1,69 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+target/
+*.tsbuildinfo
+bin/
+obj/
+
+# Godot — cache import, không commit; .csproj/.sln do Godot sinh lại được
+app/.godot/
+app/*.sln
+app/**/*.csproj.user
+
+# Hướng cũ đã bỏ (Tauri + React + TypeScript) — xem CLAUDE.md, không dùng nữa,
+# giữ lại trên máy để tham khảo lịch sử nhưng không đưa lên kho công khai.
+/apps/
+/packages/
+/_to_delete/
+/package.json
+/pnpm-lock.yaml
+/pnpm-workspace.yaml
+/tsconfig.base.json
+
+# Dự án visual novel cá nhân người dùng tạo bằng app — không phải mã nguồn
+# VNdev, mỗi người dùng app sẽ có projects/ riêng của họ.
+/projects/
+
+# File nguồn .psd (nhiều layer, nặng, thường là asset bản quyền của tác giả
+# khác) không phải mã nguồn engine — asset của dự án luôn nằm trong thư mục
+# assets/ của TỪNG project (đã ignore ở trên), không phải trong app/.
+*.psd
+
+# Dự án thử từng bị tạo nhầm ngay trong thư mục engine app/ — chặn cả bộ khung
+# thư mục dự án để lần sau lỡ tay nữa cũng không lọt lên kho.
+/app/project.json
+/app/story/
+/app/scenes/
+/app/characters/
+/app/i18n/
+/app/assets/
+/app/.vndev/
+
+# VNdev project cache — không commit
+**/.vndev/cache/
+**/.vndev/history/
+
+# Player binary tải về khi export
+.player-cache/
+
+# môi trường
+.env
+.env.local
+
+# IDE / OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.sample.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# log
+*.log
+npm-debug.log*
+pnpm-debug.log*

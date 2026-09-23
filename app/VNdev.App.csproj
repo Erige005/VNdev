@@ -1,0 +1,17 @@
+<Project Sdk="Godot.NET.Sdk/4.3.0">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>VNdev.App</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Tầng Godot được phép tham chiếu VNdev.Core (chiều tham chiếu chỉ đi một
+      hướng). Core tuyệt đối không được tham chiếu ngược lại — xem CLAUDE.md.
+    -->
+    <ProjectReference Include="..\src\VNdev.Core\VNdev.Core.csproj" />
+  </ItemGroup>
+</Project>
