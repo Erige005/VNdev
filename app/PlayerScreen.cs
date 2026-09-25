@@ -51,38 +51,63 @@ public partial class PlayerScreen : Control
         _onClose = onClose;
     }
 
+    private Button _closeButton = null!;
+
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
 
-        var dim = new ColorRect { Color = new Color(0, 0, 0, 0.85f) };
+        // Nền đặc: editor mờ mờ phía sau làm rối mắt khi đang xem như người chơi.
+        var dim = new ColorRect { Color = Palette.Bg };
         dim.SetAnchorsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
-        var center = new CenterContainer();
-        center.SetAnchorsPreset(LayoutPreset.FullRect);
-        AddChild(center);
+        // Khung chơi thử chiếm gần trọn cửa sổ thay vì cỡ cố định: xem thử là
+        // để thấy đúng thứ người chơi thấy, khung nhỏ thì không đánh giá được
+        // ảnh nền và nhân vật trông ra sao.
+        var margin = new MarginContainer();
+        margin.SetAnchorsPreset(LayoutPreset.FullRect);
+        foreach (var side in new[] { "left", "right", "top", "bottom" }) margin.AddThemeConstantOverride($"margin_{side}", 16);
+        AddChild(margin);
 
         var frameHolder = new VBoxContainer();
-        center.AddChild(frameHolder);
+        frameHolder.AddThemeConstantOverride("separation", 8);
+        margin.AddChild(frameHolder);
 
-        var closeRow = new HBoxContainer();
-        var spacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(760, 0) };
-        var close = new Button { Text = "✕ Đóng" };
-        close.Pressed += () => _onClose();
-        closeRow.AddChild(spacer);
-        closeRow.AddChild(close);
-        frameHolder.AddChild(closeRow);
+        var topRow = new HBoxContainer();
+        var title = new Label { Text = "▶  Chơi thử" };
+        title.AddThemeColorOverride("font_color", Palette.Ok);
+        topRow.AddChild(title);
+        var hint = new Label
+        {
+            Text = "Click, Space hoặc Enter để sang dòng  ·  1–9 chọn phương án  ·  Esc để thoát",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        hint.AddThemeColorOverride("font_color", Palette.Text3);
+        hint.AddThemeFontSizeOverride("font_size", 12);
+        topRow.AddChild(hint);
+        _closeButton = new Button { Text = "✕ Đóng  (Esc)", FocusMode = FocusModeEnum.None };
+        _closeButton.Pressed += () => _onClose();
+        topRow.AddChild(_closeButton);
+        frameHolder.AddChild(topRow);
 
-        var aspect = new AspectRatioContainer { Ratio = 16f / 9f, CustomMinimumSize = new Vector2(760, 428) };
+        var aspect = new AspectRatioContainer
+        {
+            Ratio = (float)_loaded.Project.Resolution.Width / Math.Max(1, _loaded.Project.Resolution.Height),
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
         frameHolder.AddChild(aspect);
 
-        _stage = new Control();
-        _stage.GuiInput += OnStageInput;
-        var frameBg = new ColorRect { Color = new Color(0.04f, 0.05f, 0.07f) };
+        _stage = new Control { MouseFilter = MouseFilterEnum.Ignore, ClipContents = true };
+        var frameBg = new ColorRect { Color = new Color(0.04f, 0.05f, 0.07f), MouseFilter = MouseFilterEnum.Ignore };
         frameBg.SetAnchorsPreset(LayoutPreset.FullRect);
         _stage.AddChild(frameBg);
         aspect.AddChild(_stage);
+        // Nhân vật được tính cỡ theo chiều cao sân khấu lúc vẽ — đổi cỡ cửa sổ
+        // thì vẽ lại, không thì nhân vật giữ cỡ cũ trong khung đã to ra.
+        _stage.Resized += OnStageResized;
 
         // Lớp phủ tách riêng khỏi _stage: StageRenderer.Draw() xoá sạch con
         // của _stage mỗi khi sang dòng mới để vẽ lại nền/nhân vật — hộp
@@ -102,6 +127,25 @@ public partial class PlayerScreen : Control
         AddChild(_sfxPlayer);
 
         Start();
+    }
+
+    private void OnStageResized()
+    {
+        var h = _stage.Size.Y;
+        if (h <= 0) return;
+        // Cỡ chữ theo tỉ lệ khung, như game thật chạy toàn màn hình.
+        _speakerLabel.AddThemeFontSizeOverride("font_size", Mathf.RoundToInt(h * 0.036f));
+        _textLabel.AddThemeFontSizeOverride("normal_font_size", Mathf.RoundToInt(h * 0.032f));
+        foreach (var child in _choiceBox.GetChildren().OfType<Control>())
+        {
+            child.AddThemeFontSizeOverride("font_size", Mathf.RoundToInt(h * 0.03f));
+        }
+        _endingLabel.AddThemeFontSizeOverride("font_size", Mathf.RoundToInt(h * 0.05f));
+
+        if (_currentScene is not null && _lineIndex < _currentScene.Lines.Count && !_choiceBox.Visible && !_endingPanel.Visible)
+        {
+            StageRenderer.Draw(_stage, _loaded, _projectDir, _currentScene, _currentScene.StageAt(_lineIndex), keepFirst: 1);
+        }
     }
 
     public override void _Process(double delta)
@@ -128,20 +172,55 @@ public partial class PlayerScreen : Control
         _textLabel.VisibleRatio = _typeProgress;
     }
 
-    private void OnStageInput(InputEvent ev)
+    /// <summary>
+    /// Bắt click và phím ngay ở _Input, trước mọi control khác.
+    /// </summary>
+    /// <remarks>
+    /// Trước đây click gắn vào lớp sân khấu nằm dưới cùng, nên hộp thoại và ảnh
+    /// nền đè lên trên chặn mất; Space/Enter thì bị ô đang có focus ở editor
+    /// phía sau (đồ thị, nút) nuốt trước. Kết quả là kẹt ở dòng đầu tiên. Bắt ở
+    /// đây thì không gì chen ngang được — trừ nút lựa chọn và nút Đóng, phải để
+    /// chúng tự nhận click.
+    /// </remarks>
+    public override void _Input(InputEvent ev)
     {
-        if (ev is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
-        {
-            Advance();
-        }
-    }
+        if (!IsVisibleInTree()) return;
 
-    public override void _UnhandledKeyInput(InputEvent ev)
-    {
-        if (ev is InputEventKey { Pressed: true, Keycode: Key.Space or Key.Enter })
+        if (ev is InputEventKey { Pressed: true } key)
         {
-            Advance();
+            if (key.Keycode == Key.Escape)
+            {
+                _onClose();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (_choiceBox.Visible)
+            {
+                var index = (int)key.Keycode - (int)Key.Key1;
+                var buttons = _choiceBox.GetChildren().OfType<Button>().ToList();
+                if (index >= 0 && index < buttons.Count) buttons[index].EmitSignal(BaseButton.SignalName.Pressed);
+            }
+            else if (!key.Echo && key.Keycode is Key.Space or Key.Enter or Key.KpEnter or Key.Right or Key.Pagedown)
+            {
+                Advance();
+            }
+            // Chặn mọi phím, để phím tắt của editor phía sau (Ctrl+Z, Delete…)
+            // không sửa dự án trong lúc đang chơi thử.
             GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (ev is InputEventMouseButton { Pressed: true } mouse)
+        {
+            if (_choiceBox.Visible || _endingPanel.Visible) return;
+            if (_closeButton.GetGlobalRect().HasPoint(mouse.Position)) return;
+
+            if (mouse.ButtonIndex is MouseButton.Left or MouseButton.WheelDown)
+            {
+                Advance();
+                GetViewport().SetInputAsHandled();
+            }
         }
     }
 
@@ -284,10 +363,16 @@ public partial class PlayerScreen : Control
     {
         _textBox.Visible = false;
         _choiceBox.Visible = true;
-        foreach (var child in _choiceBox.GetChildren()) child.QueueFree();
+        // Gỡ hẳn nút cũ ngay (không chỉ QueueFree) để đánh số phương án mới từ 1.
+        foreach (var child in _choiceBox.GetChildren())
+        {
+            _choiceBox.RemoveChild(child);
+            child.QueueFree();
+        }
 
         var locale = _loaded.Project.PrimaryLocale;
-        var prompt = new Label { Text = choice.Prompt?[locale] ?? "" };
+        var prompt = new Label { Text = choice.Prompt?[locale] ?? "", HorizontalAlignment = HorizontalAlignment.Center, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        prompt.AddThemeFontSizeOverride("font_size", Mathf.RoundToInt(Math.Max(15f, _stage.Size.Y * 0.034f)));
         prompt.AddThemeColorOverride("font_color", Palette.Text);
         _choiceBox.AddChild(prompt);
 
@@ -295,7 +380,9 @@ public partial class PlayerScreen : Control
         {
             if (option.ShowIf is not null && !Eval(option.ShowIf)) continue;
 
-            var btn = new Button { Text = option.Text[locale] ?? option.Id };
+            var number = _choiceBox.GetChildCount();
+            var btn = new Button { Text = $"{number}.  {option.Text[locale] ?? option.Id}", FocusMode = FocusModeEnum.None };
+            btn.AddThemeFontSizeOverride("font_size", Mathf.RoundToInt(Math.Max(14f, _stage.Size.Y * 0.03f)));
             btn.Pressed += () =>
             {
                 foreach (var effect in option.Effects) Apply(effect);

@@ -23,7 +23,7 @@ hướng đi sai.
 | 8 | Hiệu ứng chuyển cảnh, particle, rung màn hình | ❌ 20% còn lại |
 | 9 | Save/Load trong game, Gallery, Ending List | ❌ |
 | 10 | Xuất game ra .exe và web | ❌ |
-| 11 | Panel AI | ❌ |
+| 11 | Trợ lý AI | ✅ |
 | 12 | Đa ngôn ngữ đầy đủ, ruby text | ❌ |
 
 Làm xong mục 1–7 là bạn tự làm được một visual novel có nhánh, có nhân vật,
@@ -121,8 +121,8 @@ Làm cho VNdev dùng như một app desktop bình thường, không chỉ đủ 
 - **Hoàn tác / Làm lại** cho mọi tab (`app/ProjectSession.cs`): chụp trạng thái
   dự án sau mỗi lần ghi đĩa, gom các lần ghi sát nhau thành một bước. Hoàn tác
   xong thì dựng lại màn hình, giữ nguyên tab, chương, vị trí cuộn.
-- **Cửa sổ Cài đặt** (`app/SettingsDialog.cs`): Chung, Giao diện, Phím tắt;
-  AI Providers và Xuất bản để khung "sắp có".
+- **Cửa sổ Cài đặt** (`app/SettingsDialog.cs`): Chung, Giao diện, Phím tắt,
+  AI Providers; Xuất bản để khung "sắp có".
 - **Màn hình chào** có dự án gần đây; app nhớ kích thước, vị trí cửa sổ.
 - **Đánh bóng**: thanh trạng thái (giờ lưu, số lỗi, mức phóng), thông báo
   nhỏ, tooltip, hỏi trước khi xoá, đổi tên / sắp xếp / xoá chương, sao chép /
@@ -134,6 +134,36 @@ xoá chương → đổi màu, cỡ chữ, phím tắt) và ảnh chụp màn h�
 
 ---
 
+## Trợ lý AI — đã xong
+
+Khung chat bên phải editor (`app/Ai/`), người dùng tự thêm API key:
+
+- **Nhà cung cấp**: Claude qua SDK chính thức của Anthropic (gói NuGet
+  `Anthropic`), cộng mọi dịch vụ chuẩn OpenAI qua `HttpClient` (OpenAI,
+  Gemini, DeepSeek, OpenRouter, Grok, Ollama). Khoá cất trong Windows
+  Credential Manager (`CredentialStore.cs`).
+- **Biết dự án**: công cụ đọc tổng quan, chương, cảnh, nhân vật
+  (`ProjectTools.cs`), kèm ngữ cảnh chỗ người dùng đang đứng.
+- **Agent làm được mọi việc trong app** (`ProjectTools.Agent.cs`): tạo/sửa
+  nhân vật và biểu cảm, tạo/sắp xếp/xoá chương, tạo cảnh kèm nền, nhạc, sân
+  khấu và thoại, dựng đồ thị một lần (thêm/sửa/xoá/nối node, điểm bắt đầu),
+  quản lý biến — cộng các công cụ sửa thoại, lựa chọn, rẽ nhánh, tiền đề.
+- **Người dùng quyết**: mỗi thay đổi hiện thẻ trước/sau; mặc định bấm Áp dụng
+  từng cái, bật "Tự áp dụng" để AI làm một mạch. Mỗi lần ghi là một bước
+  Ctrl+Z riêng; id mới sinh ra được báo lại cho AI để bước sau dùng đúng.
+- **Trọng tâm** (prompt trong `AiConversation.cs`): lên ý tưởng và hành văn
+  tiếng Việt — xưng hô, giọng nhân vật, tránh văn dịch.
+
+Kiểm chứng bằng hai máy chủ giả chạy trên máy (một nói định dạng stream của
+Anthropic, một nói chuẩn OpenAI): đi hết vòng đọc cảnh → đề xuất → áp dụng →
+ghi đĩa → Ctrl+Z; kiểm tra chữ ký khối suy nghĩ được gửi lại, kết quả công cụ,
+cache prompt, fallback, khoá sai. **Chưa chạy với khoá thật.**
+
+Còn có thể làm: lưu cuộc trò chuyện qua các lần mở dự án, gán model riêng
+cho từng loại việc như bản thiết kế, hiện chi phí token.
+
+---
+
 ## Sau 80%
 
 Theo thứ tự đáng làm trước:
@@ -142,7 +172,6 @@ Theo thứ tự đáng làm trước:
    Godot cho sẵn shader và particle nên chặng này cho hiệu quả cao.
 2. **Xuất game** — biến dự án thành .exe chạy độc lập.
 3. **Save/Load, Gallery, Ending List** trong game.
-4. **Panel AI** — cắm API key, viết tiếp thoại, sinh nhánh, kiểm tra nhất quán.
 5. **Đa ngôn ngữ đầy đủ** — giao diện 5 thứ tiếng, ruby text cho furigana.
 
 ---

@@ -157,11 +157,13 @@ public partial class ToastLayer : CanvasLayer
         anchor.MouseFilter = Control.MouseFilterEnum.Ignore;
         anchor.AddThemeConstantOverride("margin_bottom", 44);
         anchor.AddThemeConstantOverride("margin_right", 20);
+        anchor.AddThemeConstantOverride("margin_left", 20);
         AddChild(anchor);
 
         _stack = new VBoxContainer
         {
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
+            // Giữa đáy màn hình: góc phải là chỗ của khung trợ lý và ô nhập chat.
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
             SizeFlagsVertical = Control.SizeFlags.ShrinkEnd,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };

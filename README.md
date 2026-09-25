@@ -37,9 +37,13 @@ bằng GPU, không có HTML hay webview ở bất kỳ đâu.
 - Thư viện asset đọc thẳng từ thư mục `assets/` của dự án
 - Trình soạn cảnh có xem trước sân khấu tại từng dòng thoại
 - Chơi thử trong app, có ảnh, nhạc, biến và rẽ nhánh theo lựa chọn
+- Trợ lý AI bên cạnh: đọc hiểu cả dự án, cùng lên ý tưởng, trau chuốt lời
+  thoại, gợi ý rẽ nhánh. Dùng API key của chính bạn (Claude, ChatGPT, Gemini,
+  DeepSeek, OpenRouter, Grok hoặc Ollama chạy trên máy); AI chỉ đề xuất, bạn
+  duyệt rồi mới ghi
 
 **Chưa có:** hiệu ứng chuyển cảnh và particle, save/load trong game, Gallery
-và Ending List, xuất game ra `.exe`/web, panel AI, đa ngôn ngữ đầy đủ.
+và Ending List, xuất game ra `.exe`/web, đa ngôn ngữ đầy đủ.
 
 Chi tiết từng chặng: [`docs/LO-TRINH.md`](docs/LO-TRINH.md).
 

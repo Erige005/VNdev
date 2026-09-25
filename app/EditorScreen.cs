@@ -60,6 +60,10 @@ public partial class EditorScreen : Control
 
     private List<ValidationIssue> _lastIssues = new();
 
+    private Ai.AiPanel? _aiPanel;
+    private Control _aiHost = null!;
+    private Button _aiButton = null!;
+
     /// <summary>Node đã sao chép, dạng JSON để dán sang chương khác vẫn là bản độc lập.</summary>
     private static string? _clipboard;
 
@@ -92,8 +96,18 @@ public partial class EditorScreen : Control
         // Các màn hình chồng lên nhau trong cùng một vùng, đổi qua lại bằng
         // Visible thay vì dựng lại — GraphEdit giữ nguyên trạng thái pan/zoom
         // và GraphSync không phải khởi tạo lại mỗi lần chuyển tab.
+        // Thân chính chia hai: vùng làm việc theo tab, và khung trợ lý AI bên
+        // phải dùng chung cho cả bốn tab — đang soạn cảnh hay dựng đồ thị đều
+        // hỏi được, không phải chuyển màn hình.
+        var body = new HBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
+        body.AddThemeConstantOverride("separation", 0);
+        root.AddChild(body);
+
         var workspace = new Control { SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        root.AddChild(workspace);
+        body.AddChild(workspace);
+
+        _aiHost = new MarginContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
+        body.AddChild(_aiHost);
 
         _storyBody = new HBoxContainer();
         _storyBody.SetAnchorsPreset(LayoutPreset.FullRect);
@@ -130,7 +144,9 @@ public partial class EditorScreen : Control
         AddChild(_commitTimer);
 
         _session.Saved += OnSessionSaved;
+        _session.Ai.ProjectChanged += OnAiChangedProject;
         AppSettings.Changed += OnSettingsChanged;
+        SetAiPanel(AppSettings.Current.AiPanelOpen, focus: false);
 
         LoadGraphIntoEditor(_currentGraphId);
         RefreshChapterList();
@@ -158,6 +174,7 @@ public partial class EditorScreen : Control
         // Phiên dự án sống lâu hơn màn hình này (hoàn tác dựng màn hình mới), nên
         // phải tự gỡ đăng ký — không thì phiên gọi vào màn hình đã bị giải phóng.
         _session.Saved -= OnSessionSaved;
+        _session.Ai.ProjectChanged -= OnAiChangedProject;
         AppSettings.Changed -= OnSettingsChanged;
     }
 
@@ -241,6 +258,10 @@ public partial class EditorScreen : Control
         row.AddChild(tabGroup);
 
         row.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill });
+
+        _aiButton = new Button { Text = "✦  Trợ lý", ToggleMode = true, FocusMode = FocusModeEnum.None, TooltipText = WithKeys("Mở khung trợ lý AI", Shortcuts.AiPanel) };
+        _aiButton.Pressed += () => SetAiPanel(_aiButton.ButtonPressed, focus: true);
+        row.AddChild(_aiButton);
 
         var play = new Button { Text = "▶  Chơi thử", FocusMode = FocusModeEnum.None, TooltipText = WithKeys("Chơi thử từ điểm bắt đầu của chương đầu tiên", Shortcuts.Play) };
         var playStyle = new StyleBoxFlat { BgColor = new Color(Palette.Ok, 0.18f), BorderColor = new Color(Palette.Ok, 0.6f) };
@@ -344,6 +365,7 @@ public partial class EditorScreen : Control
         _viewMenu.AddCheckItem("Hiện bản đồ thu nhỏ", 4);
         _viewMenu.AddSeparator();
         AddItem(_viewMenu, 5, "Toàn màn hình", Shortcuts.Fullscreen);
+        AddItem(_viewMenu, 6, "Trợ lý AI", Shortcuts.AiPanel);
         _viewMenu.AboutToPopup += () =>
         {
             _viewMenu.SetItemChecked(_viewMenu.GetItemIndex(3), AppSettings.Current.ShowGrid);
@@ -360,6 +382,7 @@ public partial class EditorScreen : Control
                 case 3: AppSettings.Current.ShowGrid = !AppSettings.Current.ShowGrid; AppSettings.Apply(); break;
                 case 4: AppSettings.Current.ShowMinimap = !AppSettings.Current.ShowMinimap; AppSettings.Apply(); break;
                 case 5: Main.Instance?.ToggleFullscreen(); break;
+                case 6: SetAiPanel(_aiPanel is null, focus: true); break;
             }
         };
 
@@ -550,6 +573,72 @@ public partial class EditorScreen : Control
     {
         _undoButton.Disabled = !_session.CanUndo;
         _redoButton.Disabled = !_session.CanRedo;
+    }
+
+    // ================= Trợ lý AI =================
+
+    private void SetAiPanel(bool open, bool focus)
+    {
+        if (open && _aiPanel is null)
+        {
+            _aiPanel = new Ai.AiPanel(_session, DescribeContext, () => SetAiPanel(false, false)) { SizeFlagsVertical = SizeFlags.ExpandFill };
+            _aiHost.AddChild(_aiPanel);
+        }
+        else if (!open && _aiPanel is not null)
+        {
+            _aiPanel.QueueFree();
+            _aiPanel = null;
+        }
+        _aiButton.ButtonPressed = open;
+        if (open && focus) Callable.From(() => _aiPanel?.FocusInput()).CallDeferred();
+
+        if (AppSettings.Current.AiPanelOpen != open)
+        {
+            AppSettings.Current.AiPanelOpen = open;
+            AppSettings.Save();
+        }
+    }
+
+    /// <summary>
+    /// Mô tả chỗ người dùng đang đứng, gửi kèm mỗi câu hỏi — để "cảnh này",
+    /// "chỗ này" trong câu hỏi có nghĩa mà không bắt người dùng gõ id.
+    /// </summary>
+    private string DescribeContext()
+    {
+        var locale = _loaded.Project.PrimaryLocale;
+        var lines = new List<string>();
+        var tab = new[] { "Cốt truyện", "Cảnh", "Nhân vật", "Asset" }[_tab];
+        lines.Add($"Tab đang mở: {tab}");
+
+        if (_loaded.Graphs.TryGetValue(_currentGraphId, out var graph))
+        {
+            lines.Add($"Chương đang mở: {graph.Title[locale] ?? graph.Id} (id: {graph.Id})");
+            var selected = _graphSync?.SelectedIds() ?? Array.Empty<string>();
+            foreach (var id in selected.Take(5))
+            {
+                var node = graph.Find(id);
+                if (node is null) continue;
+                var extra = node is SceneNode sn ? $", cảnh: {sn.Scene}" : "";
+                lines.Add($"Node đang chọn: {node.DisplayName} (id: {node.Id}, loại: {node.GetType().Name.Replace("Node", "")}{extra})");
+            }
+        }
+
+        if (_tab == 1 && _sceneScreen.CurrentSceneId is { } sceneId && _loaded.Scenes.TryGetValue(sceneId, out var scene))
+        {
+            lines.Add($"Cảnh đang mở: {sceneId} ({scene.Lines.Count} dòng)");
+            var sel = _sceneScreen.SelectedLine;
+            if (sel >= 0 && sel < scene.Lines.Count) lines.Add($"Dòng đang chọn: {sel} — \"{scene.Lines[sel].Text[locale]}\"");
+        }
+        return string.Join("\n", lines);
+    }
+
+    private void OnAiChangedProject()
+    {
+        // Đề xuất vừa được ghi thẳng vào dữ liệu — dựng lại màn hình để đồ thị,
+        // danh sách cảnh và bảng lỗi hiện đúng. Khung chat không mất vì nó đọc
+        // từ phiên dự án.
+        ToastLayer.Show("✦  Đã áp dụng đề xuất của trợ lý — Ctrl+Z để hoàn tác.", ToastLayer.Kind.Ok);
+        ReloadRequested?.Invoke(CaptureViewState());
     }
 
     // ================= Hoàn tác =================

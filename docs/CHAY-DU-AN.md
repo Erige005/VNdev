@@ -173,7 +173,8 @@ bấm lưu:
   lưới, minimap.
 - **Phím tắt**: bấm vào ô phím rồi nhấn tổ hợp mới. Esc huỷ, Backspace bỏ gán.
   Trùng với phím của việc khác thì việc kia bị gỡ phím và app báo cho biết.
-- **AI Providers**, **Xuất bản**: chưa có, sẽ làm theo `docs/LO-TRINH.md`.
+- **AI Providers**: thêm nhà cung cấp AI và dán API key (xem mục 9).
+- **Xuất bản**: chưa có, sẽ làm theo `docs/LO-TRINH.md`.
 
 Cài đặt và danh sách dự án gần đây lưu ở `%APPDATA%\VNdev\settings.json`,
 không nằm trong thư mục dự án, nên không lên Git. App cũng nhớ kích thước và
@@ -205,10 +206,61 @@ Sau đó, chọn biểu cảm ở từng dòng thoại trong app là nhân vật
 "bgm": { "src": "assets/bgm/ten-bai.mp3", "volume": 0.6, "loop": true },
 ```
 
+## 9. Trợ lý AI
+
+Bấm **✦ Trợ lý** trên thanh công cụ (hoặc **Ctrl+L**) để mở khung chat bên
+phải. Khung này dùng chung cho cả bốn tab.
+
+**Kết nối lần đầu.** App không kèm sẵn AI nào, bạn dùng tài khoản của mình:
+
+1. Tệp → Cài đặt → **AI Providers** (hoặc bấm "Kết nối một AI" trong khung chat).
+2. Trang này liệt kê sẵn các dịch vụ: Claude, ChatGPT, Gemini, DeepSeek,
+   OpenRouter, Grok, Ollama. Bấm **Kết nối ▾** ở dịch vụ bạn có tài khoản.
+   Chưa có khoá thì bấm **Lấy key ↗**, app mở đúng trang lấy khoá.
+3. Dán khoá, bấm **Lưu khoá**. App tự kiểm tra khoá và tải danh sách model.
+4. Chọn model trong ô **Model** (Claude chọn sẵn `claude-opus-5`). Dịch vụ
+   đầu tiên kết nối xong được dùng ngay.
+
+Không cần biết địa chỉ API. Máy chủ riêng hay dịch vụ chưa có trong danh sách
+thì dùng **Thêm dịch vụ tự nhập địa chỉ** ở cuối trang.
+
+Khoá được cất trong **Windows Credential Manager**, không ghi vào
+`settings.json` hay thư mục dự án, nên đưa dự án lên Git không lộ khoá.
+Thêm nhiều nhà cung cấp được; đổi qua lại bằng ô chọn ở đầu khung chat.
+
+**Trợ lý làm được gì.** Nó đọc được cả dự án (chương, node, cảnh, lời thoại,
+nhân vật, biến, lỗi đồ thị) và biết bạn đang mở chương, cảnh, node nào, nên
+"cảnh này", "chỗ này" là đủ hiểu. Việc chính là **lên ý tưởng** và **hành
+văn**: gợi ý hướng phát triển, trau chuốt thoại cho tự nhiên, giữ đúng giọng
+và cách xưng hô của từng nhân vật, soát chỗ mâu thuẫn. Các nút gợi ý nhanh
+phía dưới khung chat làm sẵn những việc hay dùng.
+
+**Nó tự làm được mọi việc trong app**, không bắt bạn làm tay:
+- tạo và sửa nhân vật, biểu cảm, gán ảnh sprite, hồ sơ giọng;
+- tạo, đổi tên, sắp xếp, xoá chương;
+- tạo cảnh kèm nền, nhạc, nhân vật đứng sẵn và lời thoại, sửa thoại;
+- dựng đồ thị: thêm, sửa, xoá, nối node, đặt điểm bắt đầu, rẽ nhánh;
+- khai báo, sửa, xoá biến; viết tiền đề truyện.
+
+Việc duy nhất bạn phải tự làm là chép file ảnh và nhạc vào thư mục `assets/`.
+
+**Bạn vẫn là người quyết.** Mỗi thay đổi hiện một **thẻ** có bản trước/sau.
+Mặc định trợ lý chờ bạn bấm **Áp dụng** hoặc **Bỏ qua** từng cái. Muốn giao
+việc cho nó làm một mạch (ví dụ dựng cả chương), bật công tắc **Tự áp dụng**
+ngay dưới khung chat (hoặc trong Cài đặt → AI Providers). Bật hay tắt thì
+mỗi thay đổi vẫn là một bước **Ctrl+Z** riêng.
+
+Mẹo: điền **Hồ sơ giọng** cho từng nhân vật ở tab Nhân vật (tính cách, xưng
+hô với từng người, từ cửa miệng). Trợ lý đọc hồ sơ này trước khi viết thoại.
+Không muốn tự viết thì nhờ trợ lý viết giúp.
+
+Enter để gửi, Shift+Enter xuống dòng, **■ Dừng** để ngắt câu trả lời đang viết.
+Cuộc trò chuyện mất khi đóng dự án. Tiền API tính theo tài khoản của bạn ở
+nhà cung cấp đó.
+
 ## Chưa có
 
 - Hiệu ứng chuyển cảnh, animation nhân vật, particle
 - Save/Load trong game, Gallery, Ending List
 - Xuất game ra `.exe` và web
-- Panel AI
 - Đa ngôn ngữ đầy đủ

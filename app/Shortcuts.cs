@@ -41,6 +41,7 @@ public static class Shortcuts
     public const string ZoomFit = "view.zoom_fit";
     public const string Fullscreen = "view.fullscreen";
 
+    public const string AiPanel = "view.ai";
     public const string Play = "run.play";
     public const string ShortcutList = "help.shortcuts";
 
@@ -69,6 +70,7 @@ public static class Shortcuts
         new ShortcutAction(ZoomOut, "Xem", "Thu nhỏ đồ thị", "Ctrl+Minus"),
         new ShortcutAction(ZoomFit, "Xem", "Vừa khung đồ thị", "Ctrl+0"),
         new ShortcutAction(Fullscreen, "Xem", "Toàn màn hình", "F11"),
+        new ShortcutAction(AiPanel, "Xem", "Trợ lý AI", "Ctrl+L"),
 
         new ShortcutAction(Play, "Chạy", "Chơi thử", "F5"),
         new ShortcutAction(ShortcutList, "Trợ giúp", "Danh sách phím tắt", "F1"),

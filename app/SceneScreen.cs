@@ -110,6 +110,7 @@ public partial class SceneScreen : Control
     }
 
     public string? CurrentSceneId => _currentSceneId;
+    public int SelectedLine => _selectedLine;
 
     /// <summary>
     /// Chọn lại cảnh sau khi màn hình được dựng lại (hoàn tác, đổi cài đặt).

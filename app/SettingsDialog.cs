@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 
@@ -83,9 +84,7 @@ public partial class SettingsDialog : AcceptDialog
         {
             case 0: BuildGeneral(box); break;
             case 1: BuildAppearance(box); break;
-            case 2: BuildComingSoon(box, "AI Providers",
-                "Kết nối Claude, ChatGPT, Gemini, DeepSeek hoặc Ollama chạy local, rồi gán model riêng cho từng việc: viết thoại, dịch hàng loạt, kiểm tra nhất quán. Khoá API sẽ lưu trong Windows Credential Manager, không nằm trong file dự án.");
-                break;
+            case 2: BuildAiProviders(box); break;
             case 3: BuildShortcuts(box); break;
             case 4: BuildComingSoon(box, "Xuất bản",
                 "Đóng gói dự án thành game chạy độc lập cho Windows (.exe) và web, chọn biểu tượng, tên file và ngôn ngữ đi kèm.");
@@ -199,6 +198,427 @@ public partial class SettingsDialog : AcceptDialog
         };
         box.AddChild(reset);
     }
+
+    // ---------- AI Providers ----------
+
+    /// <summary>Dịch vụ đang mở rộng để dán khoá — giữ qua các lần vẽ lại trang.</summary>
+    private static string? _expandedAi;
+
+
+    private void BuildAiProviders(VBoxContainer box)
+    {
+        Check(box, "Cho trợ lý tự áp dụng thay đổi, không hỏi từng lần", AppSettings.Current.AiAutoApply, v => AppSettings.Current.AiAutoApply = v);
+        Hint(box, "Tắt: mỗi thay đổi của trợ lý hiện thẻ trước/sau để bạn bấm Áp dụng. Bật: trợ lý làm một mạch. Bật hay tắt thì vẫn Ctrl+Z được. Có công tắc giống vậy ngay dưới khung chat.");
+        box.AddChild(new HSeparator());
+        Hint(box, "Chọn dịch vụ bạn có tài khoản, dán API key là dùng được. Khoá được cất trong Windows Credential Manager — không ghi vào file cài đặt hay thư mục dự án, nên đưa dự án lên Git không lộ khoá.");
+
+        var active = AppSettings.Current.ActiveProvider();
+        foreach (var preset in Ai.Providers.Presets)
+        {
+            var config = AppSettings.Current.AiProviders.FirstOrDefault(c => Ai.Providers.PresetFor(c) == preset);
+            box.AddChild(PresetRow(preset, config, config is not null && config == active));
+        }
+
+        // Dịch vụ tự nhập địa chỉ — cho ai dùng máy chủ riêng hoặc dịch vụ chưa có trong danh sách.
+        var customs = AppSettings.Current.AiProviders.Where(c => Ai.Providers.PresetFor(c) is null).ToList();
+        box.AddChild(new HSeparator());
+        Heading(box, "Dịch vụ khác (chuẩn OpenAI)");
+        foreach (var c in customs) box.AddChild(ProviderCard(c, c == active));
+        var addCustom = new Button { Text = "＋  Thêm dịch vụ tự nhập địa chỉ", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+        addCustom.Pressed += () =>
+        {
+            AppSettings.Current.AiProviders.Add(new AiProviderConfig { Name = "Dịch vụ tuỳ chỉnh", Kind = AiProviderKind.OpenAiCompatible });
+            AppSettings.Apply();
+            ShowPage(_page);
+        };
+        box.AddChild(addCustom);
+    }
+
+    private AiProviderConfig EnsureConfig(Ai.ProviderPreset preset)
+    {
+        var s = AppSettings.Current;
+        var config = s.AiProviders.FirstOrDefault(c => Ai.Providers.PresetFor(c) == preset);
+        if (config is not null) return config;
+        config = new AiProviderConfig
+        {
+            Id = preset.Id,
+            Name = preset.Name,
+            Kind = preset.Kind,
+            BaseUrl = preset.BaseUrl,
+            NeedsKey = preset.NeedsKey,
+            Model = preset.Kind == AiProviderKind.Anthropic ? Ai.Providers.ClaudeModels[0] : "",
+        };
+        s.AiProviders.Add(config);
+        return config;
+    }
+
+    private static bool IsReady(AiProviderConfig? c)
+        => c is not null && (!c.NeedsKey || Ai.CredentialStore.Has(c.Id)) && c.Model.Length > 0;
+
+    private Control PresetRow(Ai.ProviderPreset preset, AiProviderConfig? config, bool isActive)
+    {
+        var expanded = _expandedAi == preset.Id;
+        var hasKey = config is not null && (!preset.NeedsKey || Ai.CredentialStore.Has(config.Id));
+
+        var panel = new PanelContainer();
+        var sb = new StyleBoxFlat { BgColor = expanded ? Palette.Panel : Palette.Panel2, BorderColor = isActive && IsReady(config) ? Palette.Accent : Palette.Line };
+        sb.SetBorderWidthAll(1);
+        sb.SetCornerRadiusAll(8);
+        sb.SetContentMarginAll(10);
+        panel.AddThemeStyleboxOverride("panel", sb);
+
+        var box = new VBoxContainer();
+        box.AddThemeConstantOverride("separation", 8);
+        panel.AddChild(box);
+
+        var head = new HBoxContainer();
+        var names = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        names.AddThemeConstantOverride("separation", 0);
+        var title = new Label { Text = $"{preset.Name}   ·   {preset.Vendor}" };
+        title.AddThemeColorOverride("font_color", Palette.Text);
+        names.AddChild(title);
+        var blurb = new Label { Text = preset.Blurb };
+        blurb.AddThemeColorOverride("font_color", Palette.Text3);
+        blurb.AddThemeFontSizeOverride("font_size", 12);
+        names.AddChild(blurb);
+        head.AddChild(names);
+
+        if (isActive && IsReady(config))
+        {
+            var badge = new Label { Text = "● Đang dùng" };
+            badge.AddThemeColorOverride("font_color", Palette.Ok);
+            head.AddChild(badge);
+        }
+        else if (hasKey)
+        {
+            var badge = new Label { Text = "✓ Đã kết nối" };
+            badge.AddThemeColorOverride("font_color", Palette.Text2);
+            head.AddChild(badge);
+            if (IsReady(config))
+            {
+                var use = new Button { Text = "Dùng cái này" };
+                use.Pressed += () => { AppSettings.Current.ActiveAiProvider = config!.Id; AppSettings.Apply(); ShowPage(_page); };
+                head.AddChild(use);
+            }
+        }
+
+        var toggle = new Button { Text = expanded ? "Thu gọn ▴" : hasKey ? "Sửa ▾" : "Kết nối ▾" };
+        toggle.Pressed += () => { _expandedAi = expanded ? null : preset.Id; ShowPage(_page); };
+        head.AddChild(toggle);
+        box.AddChild(head);
+
+        if (expanded) BuildPresetDetails(box, preset);
+        return panel;
+    }
+
+    private void BuildPresetDetails(VBoxContainer box, Ai.ProviderPreset preset)
+    {
+        var config = AppSettings.Current.AiProviders.FirstOrDefault(c => Ai.Providers.PresetFor(c) == preset);
+        var status = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        status.AddThemeFontSizeOverride("font_size", 12);
+
+        if (preset.NeedsKey)
+        {
+            var saved = config is null ? null : Ai.CredentialStore.Get(config.Id);
+            var row = new HBoxContainer();
+            var key = new LineEdit
+            {
+                Secret = true,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+                PlaceholderText = saved is null ? $"Dán API key {preset.Name} vào đây" : $"Đã lưu: {Ai.CredentialStore.Mask(saved)} — dán khoá mới để thay",
+            };
+            row.AddChild(key);
+            var save = new Button { Text = "Lưu khoá" };
+            row.AddChild(save);
+            var get = new Button { Text = "Lấy key ↗", TooltipText = preset.KeyUrl };
+            get.Pressed += () => OS.ShellOpen(preset.KeyUrl);
+            row.AddChild(get);
+            box.AddChild(row);
+
+            async void SaveKey()
+            {
+                var k = key.Text.Trim();
+                if (k.Length == 0) return;
+                var c = EnsureConfig(preset);
+                try
+                {
+                    Ai.CredentialStore.Set(c.Id, k);
+                }
+                catch (Exception ex)
+                {
+                    status.Text = ex.Message;
+                    status.AddThemeColorOverride("font_color", Palette.Err);
+                    return;
+                }
+                key.Text = "";
+                AppSettings.Save();
+                await FetchModels(c, status);
+                if (IsInstanceValid(status)) ToastLayer.Show(status.Text, status.Text.StartsWith('✓') ? ToastLayer.Kind.Ok : ToastLayer.Kind.Error);
+                // Dịch vụ đầu tiên người dùng kết nối thì dùng luôn — không bắt họ
+                // tìm thêm một nút "Dùng cái này" nữa.
+                if (!IsReady(AppSettings.Current.ActiveProvider()) && IsReady(c)) AppSettings.Current.ActiveAiProvider = c.Id;
+                AppSettings.Apply();
+                if (IsInstanceValid(this)) ShowPage(_page);
+            }
+            save.Pressed += SaveKey;
+            key.TextSubmitted += _ => SaveKey();
+
+            if (saved is not null)
+            {
+                var forget = new Button { Text = "Gỡ khoá khỏi máy", Flat = true, SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+                forget.AddThemeColorOverride("font_color", Palette.Err);
+                forget.Pressed += () => Dialogs.Confirm(this, "Gỡ khoá", $"Xoá khoá {preset.Name} khỏi máy này?", "Gỡ khoá", () =>
+                {
+                    Ai.CredentialStore.Delete(config!.Id);
+                    if (AppSettings.Current.ActiveAiProvider == config.Id) AppSettings.Current.ActiveAiProvider = null;
+                    AppSettings.Apply();
+                    ShowPage(_page);
+                }, danger: true);
+                box.AddChild(forget);
+            }
+        }
+        else
+        {
+            var hint = new Label
+            {
+                Text = "Cài Ollama, tải một model (ví dụ gõ lệnh \"ollama pull\" kèm tên model) và để Ollama chạy, rồi bấm Tải danh sách model bên dưới.",
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            hint.AddThemeColorOverride("font_color", Palette.Text2);
+            box.AddChild(hint);
+            var get = new Button { Text = "Tải Ollama ↗", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+            get.Pressed += () => OS.ShellOpen(preset.KeyUrl);
+            box.AddChild(get);
+        }
+
+        var canList = config is not null && (!preset.NeedsKey || Ai.CredentialStore.Has(config.Id));
+        if (!canList && preset.NeedsKey)
+        {
+            status.Text = "Dán khoá rồi bấm Lưu khoá — app sẽ tự tải danh sách model.";
+            status.AddThemeColorOverride("font_color", Palette.Text3);
+            box.AddChild(status);
+            return;
+        }
+
+        var modelRow = new HBoxContainer();
+        var label = new Label { Text = "Model", CustomMinimumSize = new Vector2(70, 0) };
+        label.AddThemeColorOverride("font_color", Palette.Text3);
+        modelRow.AddChild(label);
+
+        var pick = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var models = new List<string>();
+        if (config is not null && config.KnownModels.Count > 0) models.AddRange(config.KnownModels);
+        else if (preset.Kind == AiProviderKind.Anthropic) models.AddRange(Ai.Providers.ClaudeModels);
+        if (config is not null && config.Model.Length > 0 && !models.Contains(config.Model)) models.Insert(0, config.Model);
+
+        if (models.Count == 0) pick.AddItem("— bấm ↻ để tải danh sách —");
+        else if (config is null || config.Model.Length == 0) pick.AddItem("— chọn model —");
+        foreach (var m in models) pick.AddItem(m);
+        var current = config?.Model ?? "";
+        for (var i = 0; i < pick.ItemCount; i++) if (pick.GetItemText(i) == current) pick.Select(i);
+        pick.ItemSelected += i =>
+        {
+            var chosen = pick.GetItemText((int)i);
+            if (chosen.StartsWith('—')) return;
+            var c = EnsureConfig(preset);
+            c.Model = chosen;
+            if (!IsReady(AppSettings.Current.ActiveProvider())) AppSettings.Current.ActiveAiProvider = c.Id;
+            AppSettings.Apply();
+            ShowPage(_page);
+        };
+        modelRow.AddChild(pick);
+
+        var refresh = new Button { Text = "↻", TooltipText = "Tải lại danh sách model từ dịch vụ — cũng là cách kiểm tra khoá có đúng không" };
+        refresh.Pressed += async () =>
+        {
+            var c = EnsureConfig(preset);
+            await FetchModels(c, status);
+            if (IsInstanceValid(this) && status.Text.StartsWith('✓')) ShowPage(_page);
+        };
+        modelRow.AddChild(refresh);
+        box.AddChild(modelRow);
+
+        if (config is not null && config.Model.Length == 0)
+        {
+            status.Text = "Chọn một model trong danh sách là dùng được.";
+            status.AddThemeColorOverride("font_color", Palette.Warn);
+        }
+        box.AddChild(status);
+
+        // Có khoá mà chưa từng tải danh sách (bản cũ không lưu) — tự tải luôn khi
+        // người dùng mở ra, thay vì bắt họ biết phải bấm ↻.
+        if (config is not null && config.KnownModels.Count == 0)
+        {
+            Callable.From(async () =>
+            {
+                await FetchModels(config, status);
+                if (IsInstanceValid(this) && config.KnownModels.Count > 0) ShowPage(_page);
+            }).CallDeferred();
+        }
+    }
+
+    private static async System.Threading.Tasks.Task FetchModels(AiProviderConfig config, Label status)
+    {
+        status.Text = "Đang hỏi dịch vụ danh sách model…";
+        status.AddThemeColorOverride("font_color", Palette.Text3);
+        try
+        {
+            var models = Ai.Providers.ChatModelsOnly(await Ai.Providers.Create(config).ListModels(default));
+            config.KnownModels = models;
+            AppSettings.Save();
+            if (!IsInstanceValid(status)) return;
+            status.Text = $"✓ Kết nối được — {models.Count} model.";
+            status.AddThemeColorOverride("font_color", Palette.Ok);
+        }
+        catch (Ai.AiException ex)
+        {
+            if (!IsInstanceValid(status)) return;
+            status.Text = ex.Message;
+            status.AddThemeColorOverride("font_color", Palette.Err);
+        }
+    }
+
+    private Control ProviderCard(AiProviderConfig p, bool isActive)
+    {
+        var panel = new PanelContainer();
+        var sb = new StyleBoxFlat { BgColor = Palette.Panel, BorderColor = isActive ? Palette.Accent : Palette.Line };
+        sb.SetBorderWidthAll(1);
+        sb.SetCornerRadiusAll(8);
+        sb.SetContentMarginAll(12);
+        panel.AddThemeStyleboxOverride("panel", sb);
+
+        var box = new VBoxContainer();
+        box.AddThemeConstantOverride("separation", 8);
+        panel.AddChild(box);
+
+        var top = new HBoxContainer();
+        var name = new LineEdit { Text = p.Name, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = "Tên hiển thị" };
+        name.TextChanged += t => { p.Name = t; AppSettings.Save(); };
+        name.FocusExited += () => AppSettings.Apply();
+        top.AddChild(name);
+        if (isActive)
+        {
+            var badge = new Label { Text = "● Đang dùng" };
+            badge.AddThemeColorOverride("font_color", Palette.Ok);
+            top.AddChild(badge);
+        }
+        else
+        {
+            var use = new Button { Text = "Dùng cái này" };
+            use.Pressed += () => { AppSettings.Current.ActiveAiProvider = p.Id; AppSettings.Apply(); ShowPage(_page); };
+            top.AddChild(use);
+        }
+        var remove = new Button { Text = "Xoá", Flat = true, TooltipText = "Xoá nhà cung cấp và khoá của nó" };
+        remove.Pressed += () => Dialogs.Confirm(this, "Xoá nhà cung cấp", $"Xoá \"{p.Name}\" và khoá API đã lưu của nó?", "Xoá", () =>
+        {
+            Ai.CredentialStore.Delete(p.Id);
+            AppSettings.Current.AiProviders.Remove(p);
+            if (AppSettings.Current.ActiveAiProvider == p.Id) AppSettings.Current.ActiveAiProvider = AppSettings.Current.AiProviders.FirstOrDefault()?.Id;
+            AppSettings.Apply();
+            ShowPage(_page);
+        }, danger: true);
+        top.AddChild(remove);
+        box.AddChild(top);
+
+        var kind = p.Kind == AiProviderKind.Anthropic ? "Anthropic (SDK chính thức)" : "Chuẩn OpenAI";
+        var url = new LineEdit { Text = p.BaseUrl, PlaceholderText = "https://…/v1", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        url.TextChanged += t => { p.BaseUrl = t.Trim(); AppSettings.Save(); };
+        CardRow(box, $"Địa chỉ API · {kind}", url);
+
+        if (p.NeedsKey)
+        {
+            var keyRow = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            var saved = Ai.CredentialStore.Get(p.Id);
+            var key = new LineEdit
+            {
+                Secret = true,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+                PlaceholderText = saved is null ? "Dán API key vào đây" : $"Đã lưu: {Ai.CredentialStore.Mask(saved)} — dán khoá mới để thay",
+            };
+            keyRow.AddChild(key);
+            var save = new Button { Text = "Lưu khoá" };
+            void SaveKey()
+            {
+                var k = key.Text.Trim();
+                if (k.Length == 0) return;
+                try
+                {
+                    Ai.CredentialStore.Set(p.Id, k);
+                    ToastLayer.Show($"Đã lưu khoá cho {p.Name}.", ToastLayer.Kind.Ok);
+                    ShowPage(_page);
+                }
+                catch (Exception ex)
+                {
+                    ToastLayer.Show(ex.Message, ToastLayer.Kind.Error);
+                }
+            }
+            save.Pressed += SaveKey;
+            key.TextSubmitted += _ => SaveKey();
+            keyRow.AddChild(save);
+            CardRow(box, "API key", keyRow);
+        }
+
+        var modelRow = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var model = new LineEdit { Text = p.Model, PlaceholderText = "tên model, hoặc bấm Tải danh sách", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        model.TextChanged += t => { p.Model = t.Trim(); AppSettings.Save(); };
+        model.FocusExited += () => AppSettings.Apply();
+        modelRow.AddChild(model);
+
+        var status = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        status.AddThemeFontSizeOverride("font_size", 12);
+        if (p.NeedsKey && !Ai.CredentialStore.Has(p.Id))
+        {
+            status.Text = "Chưa có khoá — dán khoá rồi bấm Lưu khoá.";
+            status.AddThemeColorOverride("font_color", Palette.Warn);
+        }
+
+        var pick = new MenuButton { Text = "Tải danh sách ▾", Flat = false, TooltipText = "Hỏi nhà cung cấp danh sách model tài khoản của bạn dùng được — cũng là cách kiểm tra khoá có đúng không" };
+        var popup = pick.GetPopup();
+        if (p.Kind == AiProviderKind.Anthropic) foreach (var m in Ai.Providers.ClaudeModels) popup.AddItem(m);
+        popup.IndexPressed += i =>
+        {
+            var chosen = popup.GetItemText((int)i);
+            if (chosen.StartsWith('(')) return;
+            model.Text = chosen;
+            p.Model = chosen;
+            AppSettings.Apply();
+        };
+        pick.AboutToPopup += async () =>
+        {
+            status.Text = "Đang hỏi nhà cung cấp…";
+            status.AddThemeColorOverride("font_color", Palette.Text3);
+            try
+            {
+                var models = await Ai.Providers.Create(p).ListModels(default);
+                if (!IsInstanceValid(status)) return;
+                popup.Clear();
+                foreach (var m in models.Take(200)) popup.AddItem(m);
+                if (models.Count == 0) popup.AddItem("(không có model nào)");
+                status.Text = $"✓ Kết nối được — {models.Count} model.";
+                status.AddThemeColorOverride("font_color", Palette.Ok);
+            }
+            catch (Ai.AiException ex)
+            {
+                if (!IsInstanceValid(status)) return;
+                status.Text = ex.Message;
+                status.AddThemeColorOverride("font_color", Palette.Err);
+            }
+        };
+        modelRow.AddChild(pick);
+        CardRow(box, "Model", modelRow);
+        box.AddChild(status);
+        return panel;
+    }
+
+    private static void CardRow(VBoxContainer box, string label, Control control)
+    {
+        var l = new Label { Text = label };
+        l.AddThemeColorOverride("font_color", Palette.Text3);
+        l.AddThemeFontSizeOverride("font_size", 12);
+        box.AddChild(l);
+        box.AddChild(control);
+    }
+
 
     // ---------- Phím tắt ----------
 

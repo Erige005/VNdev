@@ -15,6 +15,31 @@ public sealed class RecentProject
     public DateTime LastOpened { get; set; }
 }
 
+public enum AiProviderKind { Anthropic, OpenAiCompatible }
+
+/// <summary>
+/// Một nhà cung cấp AI người dùng tự thêm. Khoá API KHÔNG nằm ở đây mà trong
+/// Windows Credential Manager (xem <see cref="Ai.CredentialStore"/>) — file cài
+/// đặt là văn bản thường, ai mở máy cũng đọc được.
+/// </summary>
+public sealed class AiProviderConfig
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    public string Name { get; set; } = string.Empty;
+    public AiProviderKind Kind { get; set; }
+    public string BaseUrl { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+
+    /// <summary>Ollama chạy trên máy không cần khoá.</summary>
+    public bool NeedsKey { get; set; } = true;
+
+    /// <summary>
+    /// Danh sách model lần gần nhất hỏi được từ dịch vụ. Lưu lại để mở app lần
+    /// sau ô chọn model vẫn đủ, không phải đợi hỏi lại mạng.
+    /// </summary>
+    public List<string> KnownModels { get; set; } = new();
+}
+
 public sealed class WindowState
 {
     public int X { get; set; }
@@ -51,6 +76,31 @@ public sealed class AppSettings
 
     // --- Phím tắt: id hành động → chuỗi phím, chỉ lưu những cái người dùng đã đổi ---
     public Dictionary<string, string> Shortcuts { get; set; } = new();
+
+    // --- AI ---
+    public List<AiProviderConfig> AiProviders { get; set; } = new();
+    public string? ActiveAiProvider { get; set; }
+    public bool AiPanelOpen { get; set; }
+
+    /// <summary>
+    /// Trợ lý tự ghi thay đổi mà không chờ bấm Áp dụng. Mặc định tắt — đúng
+    /// nguyên tắc "AI đề xuất, người quyết"; người dùng tự bật khi muốn giao
+    /// việc cho nó làm một mạch. Tắt hay bật thì mọi thay đổi vẫn Ctrl+Z được.
+    /// </summary>
+    public bool AiAutoApply { get; set; }
+
+    /// <summary>
+    /// Dịch vụ AI sẽ dùng: cái người dùng chọn nếu đã dùng được, không thì cái
+    /// đầu tiên đã kết nối xong — để gỡ khoá một dịch vụ không làm trợ lý tịt
+    /// hẳn khi vẫn còn dịch vụ khác.
+    /// </summary>
+    public AiProviderConfig? ActiveProvider()
+    {
+        static bool Ready(AiProviderConfig p) => (!p.NeedsKey || Ai.CredentialStore.Has(p.Id)) && !string.IsNullOrWhiteSpace(p.Model);
+        var chosen = AiProviders.FirstOrDefault(p => p.Id == ActiveAiProvider);
+        if (chosen is not null && Ready(chosen)) return chosen;
+        return AiProviders.FirstOrDefault(Ready) ?? chosen ?? AiProviders.FirstOrDefault();
+    }
 
     public List<RecentProject> RecentProjects { get; set; } = new();
     public WindowState? Window { get; set; }

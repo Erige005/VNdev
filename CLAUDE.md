@@ -100,6 +100,8 @@ D:\VNdev\
 │   ├── Shortcuts.cs           bảng phím tắt duy nhất, đổi được trong Cài đặt
 │   ├── SettingsDialog.cs      cửa sổ Cài đặt
 │   ├── Dialogs.cs             hộp thoại dùng chung + ToastLayer (thông báo nhỏ)
+│   ├── Ai/                    trợ lý AI: provider Claude (SDK) + chuẩn OpenAI,
+│   │                          công cụ đọc/đề xuất sửa dự án, khung chat, cất khoá
 │   ├── GraphSync.cs           lớp dịch StoryGraph ↔ GraphEdit
 │   ├── NodeInspector.cs       panel thuộc tính theo từng loại node
 │   ├── CharacterScreen.cs     nhân vật + panel biến (Chặng 3)
@@ -190,8 +192,19 @@ sổ, thanh trạng thái, thông báo nhỏ. Xem "Hoàn thiện app" trong
 hình mới phải nhận `IFileSystem` từ phiên, không tự tạo `DiskFileSystem`,
 không thì thao tác ở đó không hoàn tác được.
 
+**Trợ lý AI (xong, chưa thử với khoá thật):** khung chat bên phải (Ctrl+L),
+người dùng tự thêm API key. Xem "Trợ lý AI" trong `docs/LO-TRINH.md`. Trợ lý
+là agent: có công cụ làm mọi việc trong app (tạo nhân vật, chương, cảnh, dựng
+đồ thị, biến — `app/Ai/ProjectTools*.cs`). Hai điều không được phá: mọi thay
+đổi của AI đi qua `Proposal` — mặc định người dùng bấm Áp dụng từng cái, chỉ
+khi họ tự bật "Tự áp dụng" mới ghi luôn, và lần nào cũng thành một bước
+Ctrl+Z riêng; khoá API **chỉ nằm trong Windows Credential
+Manager**, không bao giờ vào `settings.json` hay thư mục dự án. Cuộc trò
+chuyện sống trong `ProjectSession.Ai`, không trong panel, để editor dựng lại
+(hoàn tác, áp dụng) không làm mất nó.
+
 **Chưa có (20% còn lại):** hiệu ứng chuyển cảnh/particle, save-load trong
-game, Gallery/Ending List, xuất game ra .exe/web, panel AI, đa ngôn ngữ đầy
+game, Gallery/Ending List, xuất game ra .exe/web, đa ngôn ngữ đầy
 đủ. Xem "Sau 80%" trong `docs/LO-TRINH.md`.
 
 **Còn sót:** thư mục `apps/` và `packages/` là code TypeScript của hướng cũ
@@ -208,7 +221,9 @@ Năm nguyên tắc này quyết định mọi lựa chọn giao diện:
 2. **Canvas là game thật.** Khung thiết kế và khung chơi dùng chung một engine.
    Cái kéo thả ra chính là cái người chơi thấy.
 3. **Code là tuỳ chọn.** Mọi tính năng phải làm được bằng giao diện.
-4. **AI đề xuất, người quyết.** AI không bao giờ ghi trực tiếp, luôn hiện diff.
+4. **AI đề xuất, người quyết.** Mọi thay đổi của AI hiện bản trước/sau.
+   Mặc định người dùng duyệt từng cái; họ có thể tự bật "Tự áp dụng" để giao
+   việc cho AI làm một mạch — lúc đó vẫn hiện thẻ và vẫn Ctrl+Z được.
 5. **Tối giản nhưng không nghèo nàn.** Giao diện tối, tương phản cao để ảnh
    game nổi bật. Màu nhấn chỉ dùng cho hành động và trạng thái.
 
@@ -230,6 +245,10 @@ Ghi lại để không đi lại đường cũ.
 | C# + MonoGame | **Loại.** Không có sẵn cả nút bấm, quá lâu. |
 | **C# + Godot 4** | **Đang dùng.** |
 | Dùng xUnit | **Loại.** Harness tự viết để không phụ thuộc NuGet. |
+| Gọi Claude bằng SDK chính thức (NuGet `Anthropic`) | **Đang dùng.** Phụ thuộc NuGet đầu tiên của app — đổi lấy streaming, tool use, fallback đúng chuẩn. Provider khác dùng `HttpClient`. |
+| AI có sẵn trong app | **Không.** Người dùng tự thêm API key của mình. |
+| AI chỉ sửa được thứ đã có, việc tạo mới nhờ người dùng làm tay | **Bỏ.** Người dùng muốn agent đúng nghĩa — AI có công cụ làm mọi việc trong app. |
+| AI tự ghi không hỏi | **Tuỳ chọn, mặc định tắt.** Công tắc "Tự áp dụng" dưới khung chat và trong Cài đặt. |
 
 ---
 

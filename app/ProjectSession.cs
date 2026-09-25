@@ -134,6 +134,11 @@ public sealed class ProjectSession
 
     public string Title => Loaded.Project.Title[Loaded.Project.PrimaryLocale] ?? Loaded.Project.Id;
 
+    private Ai.AiConversation? _ai;
+
+    /// <summary>Cuộc trò chuyện với trợ lý AI — sống cùng phiên để không mất khi editor dựng lại.</summary>
+    public Ai.AiConversation Ai => _ai ??= new Ai.AiConversation(this);
+
     public ProjectSession(LoadedProject loaded, IFileSystem disk, string dir)
     {
         Loaded = loaded;
