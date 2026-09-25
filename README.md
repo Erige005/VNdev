@@ -84,12 +84,15 @@ dotnet run --project tests\VNdev.Core.Tests      # chạy bộ test của lõi
 3. Tab **Nhân vật**: tạo nhân vật, gán sprite cho từng biểu cảm.
 4. Tab **Cốt truyện**: thêm node Cảnh, chọn node rồi bấm **→ Mở trong Scene
    Canvas** ở panel bên phải để soạn lời thoại. Nối dây tới node Kết thúc.
-5. Bấm **▶ Chơi thử**.
+5. Chọn node Cảnh đầu tiên, bấm **▶ Đặt làm điểm bắt đầu** ở panel bên phải.
+   Chương mới mặc định bắt đầu ở node Kết thúc, bỏ bước này thì Chơi thử sẽ
+   nhảy thẳng tới màn kết.
+6. Bấm **▶ Chơi thử**.
 
 Định dạng dùng được: ảnh `png jpg webp`; nhạc hiện chỉ phát `ogg` và `mp3`.
 
-> **Chưa làm được bằng giao diện:** đổi node bắt đầu của chương (mặc định là
-> node Kết thúc), đặt nhân vật lên sân khấu, chọn nhạc nền cho cảnh. Trong lúc
+> **Chưa làm được bằng giao diện:** đặt nhân vật lên sân khấu, chọn nhạc nền
+> cho cảnh. Trong lúc
 > chờ, sửa tay file JSON theo hướng dẫn trong
 > [`docs/CHAY-DU-AN.md`](docs/CHAY-DU-AN.md#hạn-chế-hiện-tại-và-cách-xử-lý-tạm).
 

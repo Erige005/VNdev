@@ -14,7 +14,7 @@ namespace VNdev.App;
 /// </summary>
 public static class NodeInspector
 {
-    public static void Populate(VBoxContainer container, ProjectData project, StoryNode node, Action onChanged, Action<string>? onOpenScene = null)
+    public static void Populate(VBoxContainer container, ProjectData project, StoryGraph graph, StoryNode node, Action onChanged, Action<string>? onOpenScene = null, Action? onSetEntry = null)
     {
         foreach (var child in container.GetChildren()) child.QueueFree();
 
@@ -26,6 +26,21 @@ public static class NodeInspector
         var idLabel = new Label { Text = $"id: {node.Id}" };
         idLabel.AddThemeColorOverride("font_color", Palette.Text3);
         container.AddChild(idLabel);
+
+        // Ghi chú không bao giờ là điểm bắt đầu: engine bỏ qua nó, nên đặt vào
+        // đó thì chơi thử sẽ đứng im ngay từ đầu.
+        if (node.Id == graph.Entry)
+        {
+            var entryLabel = new Label { Text = "▶ Điểm bắt đầu của chương" };
+            entryLabel.AddThemeColorOverride("font_color", Palette.Ok);
+            container.AddChild(entryLabel);
+        }
+        else if (onSetEntry is not null && node is not CommentNode)
+        {
+            var setEntry = new Button { Text = "▶ Đặt làm điểm bắt đầu" };
+            setEntry.Pressed += onSetEntry;
+            container.AddChild(setEntry);
+        }
 
         AddField(container, "Nhãn (chỉ hiện trên node)", node.Label ?? "", text =>
         {

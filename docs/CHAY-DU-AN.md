@@ -107,6 +107,11 @@ Kéo node để di chuyển. Kéo từ cổng bên phải của node này sang n
 nối dây. Chọn node rồi nhấn **Delete** để xoá. Chọn một node thì panel bên
 phải hiện thuộc tính của nó.
 
+**Điểm bắt đầu.** Chương mới mặc định bắt đầu ở node Kết thúc, nên Chơi thử
+sẽ nhảy thẳng tới màn kết nếu bạn không đổi. Chọn node muốn mở đầu (thường là
+node Cảnh đầu tiên) rồi bấm **▶ Đặt làm điểm bắt đầu** ở panel phải. Node bắt
+đầu có dấu ▶ trên tiêu đề. Node Ghi chú không đặt làm điểm bắt đầu được.
+
 Panel **Lỗi** bên trái liệt kê vấn đề của đồ thị (node mồ côi, nhánh cụt,
 cổng chưa nối, biến chưa khai báo, thiếu cảnh...). Bấm vào một lỗi là chọn
 đúng node đó trên canvas.
@@ -135,18 +140,9 @@ Toàn bộ dự án là file đọc được bằng mắt, đưa lên Git đư�
 
 ## Hạn chế hiện tại và cách xử lý tạm
 
-Ba việc dưới đây giao diện chưa làm được. Trong lúc chờ, sửa trực tiếp file
+Hai việc dưới đây giao diện chưa làm được. Trong lúc chờ, sửa trực tiếp file
 JSON của dự án bằng trình soạn thảo bất kỳ (Notepad, VS Code). Sửa xong thì
 mở lại dự án trong app.
-
-**Đổi điểm bắt đầu của chương.** Chương mới luôn bắt đầu ở node Kết thúc, nên
-Chơi thử sẽ nhảy thẳng tới màn kết thúc. Mở `story/<chương>.graph.json`, đổi
-giá trị `"entry"` thành `id` của node muốn bắt đầu (xem trong danh sách
-`"nodes"` của cùng file):
-
-```json
-"entry": "scene_mo_dau",
-```
 
 **Đặt nhân vật lên sân khấu.** Mở `scenes/<cảnh>.scene.json`, thêm vào
 `"stage"` những nhân vật có mặt từ đầu cảnh. `anchor` là một trong

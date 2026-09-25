@@ -303,11 +303,18 @@ public partial class EditorScreen : Control
             return;
         }
 
-        NodeInspector.Populate(_inspectorBox, _loaded.Project, node, () =>
+        var graph = _loaded.Graphs[_currentGraphId];
+        NodeInspector.Populate(_inspectorBox, _loaded.Project, graph, node, () =>
         {
             _graphSync.RefreshNode(node);
             OnGraphChanged();
-        }, OpenScene);
+        }, OpenScene, () =>
+        {
+            _graphSync.SetEntry(node.Id);
+            // Vẽ lại panel để nút đổi thành nhãn "Điểm bắt đầu" — người dùng
+            // cần thấy ngay là thao tác đã ăn.
+            OnSelectionChanged(node);
+        });
     }
 
     private void AddNode(StoryNode node)

@@ -196,7 +196,7 @@ public sealed class GraphSync
         var gn = new GraphNode
         {
             Name = node.Id,
-            Title = $"{TypeIcon(node)}  {node.DisplayName}",
+            Title = TitleFor(node),
             PositionOffset = new Vector2(node.Position.X, node.Position.Y),
         };
 
@@ -241,6 +241,34 @@ public sealed class GraphSync
         }
 
         return gn;
+    }
+
+    /// <summary>
+    /// Đổi điểm bắt đầu của chương và cập nhật dấu ▶ trên canvas.
+    /// </summary>
+    /// <remarks>
+    /// Chỉ sửa tiêu đề của hai node liên quan chứ không gọi <see cref="RefreshNode"/>,
+    /// vì dựng lại GraphNode làm nó mất trạng thái đang chọn và panel thuộc tính
+    /// sẽ trống ngay sau khi người dùng vừa bấm nút trong đó.
+    /// </remarks>
+    public void SetEntry(string nodeId)
+    {
+        var previous = _graph.Entry;
+        _graph.Entry = nodeId;
+        foreach (var gn in _graphEdit.GetChildren().OfType<GraphNode>())
+        {
+            var id = gn.Name.ToString();
+            if (id != previous && id != nodeId) continue;
+            var node = _graph.Find(id);
+            if (node is not null) gn.Title = TitleFor(node);
+        }
+        Changed?.Invoke();
+    }
+
+    private string TitleFor(StoryNode node)
+    {
+        var title = $"{TypeIcon(node)}  {node.DisplayName}";
+        return node.Id == _graph.Entry ? $"▶ {title}" : title;
     }
 
     private static void AddOutputRow(GraphNode gn, List<string> handles, string label, Color color, string handle)
