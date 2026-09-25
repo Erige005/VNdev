@@ -16,6 +16,9 @@ public interface IFileSystem
     bool Exists(string path);
     void CreateDirectory(string path);
     IReadOnlyList<string> ListFiles(string path);
+
+    /// <summary>Xoá một file. Không có file thì bỏ qua, không báo lỗi.</summary>
+    void DeleteFile(string path);
 }
 
 /// <summary>Bản cài đặt dùng đĩa thật, gắn vào một thư mục gốc.</summary>
@@ -63,6 +66,12 @@ public sealed class DiskFileSystem : IFileSystem
 
     public void CreateDirectory(string path) => Directory.CreateDirectory(Resolve(path));
 
+    public void DeleteFile(string path)
+    {
+        var full = Resolve(path);
+        if (File.Exists(full)) File.Delete(full);
+    }
+
     public IReadOnlyList<string> ListFiles(string path)
     {
         var full = Resolve(path);
@@ -97,6 +106,8 @@ public sealed class MemoryFileSystem : IFileSystem
     }
 
     public void CreateDirectory(string path) => Directories.Add(Normalize(path));
+
+    public void DeleteFile(string path) => Files.Remove(Normalize(path));
 
     public IReadOnlyList<string> ListFiles(string path)
     {

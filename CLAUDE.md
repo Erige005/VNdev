@@ -92,9 +92,14 @@ D:\VNdev\
 ├── app/                       dự án Godot 4.3 .NET — Chặng 1-6 đã xong (80%)
 │   ├── project.godot
 │   ├── VNdev.App.csproj       tham chiếu VNdev.Core, không tham chiếu ngược
-│   ├── Main.cs                nút gốc, chuyển màn hình chào ↔ editor
-│   ├── WelcomeScreen.cs       Tạo dự án mới / Mở dự án
-│   ├── EditorScreen.cs        4 tab: Cốt truyện / Cảnh / Nhân vật / Asset
+│   ├── Main.cs                nút gốc: màn hình, cửa sổ, cài đặt, phím tắt cấp app
+│   ├── WelcomeScreen.cs       Tạo / Mở dự án, danh sách dự án gần đây
+│   ├── EditorScreen.cs        menu, toolbar, 4 tab, thanh trạng thái
+│   ├── ProjectSession.cs      dự án đang mở + hoàn tác (chụp trạng thái) + ProjectOpener
+│   ├── AppSettings.cs         cài đặt máy này, lưu %APPDATA%\VNdev\settings.json
+│   ├── Shortcuts.cs           bảng phím tắt duy nhất, đổi được trong Cài đặt
+│   ├── SettingsDialog.cs      cửa sổ Cài đặt
+│   ├── Dialogs.cs             hộp thoại dùng chung + ToastLayer (thông báo nhỏ)
 │   ├── GraphSync.cs           lớp dịch StoryGraph ↔ GraphEdit
 │   ├── NodeInspector.cs       panel thuộc tính theo từng loại node
 │   ├── CharacterScreen.cs     nhân vật + panel biến (Chặng 3)
@@ -154,7 +159,7 @@ bắt được lỗi thật nhiều lần.
 
 ## Trạng thái hiện tại
 
-**Đã xong và đã kiểm chứng (31/31 test pass):**
+**Đã xong và đã kiểm chứng (33/33 test pass):**
 
 - Data model đầy đủ: dự án, chương, 7 loại node, cảnh, lời thoại, nhân vật,
   biểu cảm, biến, điều kiện lồng nhau
@@ -173,6 +178,17 @@ thông dịch chạy được cả câu chuyện (bấm ▶ Chơi thử) — có
 (ogg/mp3), biến đổi theo lựa chọn, tới đúng màn Kết thúc. Đã kiểm chứng bằng
 kịch bản `--headless` đi hết một lượt: tạo nhân vật → quét asset → soạn cảnh
 → dựng đồ thị → chơi thử tới kết thúc, không lỗi runtime.
+
+**Hoàn thiện app (xong):** menu Tệp/Sửa/Xem/Chạy/Trợ giúp, phím tắt đổi
+được, hoàn tác/làm lại cho mọi tab, cửa sổ Cài đặt, dự án gần đây, nhớ cửa
+sổ, thanh trạng thái, thông báo nhỏ. Xem "Hoàn thiện app" trong
+`docs/LO-TRINH.md`.
+
+**Hoàn tác hoạt động thế nào — đừng phá:** mọi màn hình ghi đĩa qua
+`ProjectSession.Fs` (bọc `IFileSystem`). Mỗi lần ghi, phiên đánh dấu có thay
+đổi; sau 0,7 giây không ghi thêm thì chụp toàn bộ dự án thành một bước. Màn
+hình mới phải nhận `IFileSystem` từ phiên, không tự tạo `DiskFileSystem`,
+không thì thao tác ở đó không hoàn tác được.
 
 **Chưa có (20% còn lại):** hiệu ứng chuyển cảnh/particle, save-load trong
 game, Gallery/Ending List, xuất game ra .exe/web, panel AI, đa ngôn ngữ đầy

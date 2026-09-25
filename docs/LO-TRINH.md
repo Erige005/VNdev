@@ -112,6 +112,28 @@ lỗi runtime nào sau khi sửa bug trên.
 
 ---
 
+## Hoàn thiện app — đã xong
+
+Làm cho VNdev dùng như một app desktop bình thường, không chỉ đủ tính năng lõi:
+
+- **Menu Tệp / Sửa / Xem / Chạy / Trợ giúp** và phím tắt cho mọi lệnh. Bảng
+  phím tắt nằm ở một chỗ (`app/Shortcuts.cs`), đổi được trong Cài đặt.
+- **Hoàn tác / Làm lại** cho mọi tab (`app/ProjectSession.cs`): chụp trạng thái
+  dự án sau mỗi lần ghi đĩa, gom các lần ghi sát nhau thành một bước. Hoàn tác
+  xong thì dựng lại màn hình, giữ nguyên tab, chương, vị trí cuộn.
+- **Cửa sổ Cài đặt** (`app/SettingsDialog.cs`): Chung, Giao diện, Phím tắt;
+  AI Providers và Xuất bản để khung "sắp có".
+- **Màn hình chào** có dự án gần đây; app nhớ kích thước, vị trí cửa sổ.
+- **Đánh bóng**: thanh trạng thái (giờ lưu, số lỗi, mức phóng), thông báo
+  nhỏ, tooltip, hỏi trước khi xoá, đổi tên / sắp xếp / xoá chương, sao chép /
+  dán / nhân bản node, vừa khung đồ thị.
+
+Kiểm chứng bằng kịch bản `--headless` 20 bước (tạo dự án → thêm node → Ctrl+Z
+qua menu → Ctrl+Y → nhân bản → dán → xoá → thêm, sắp xếp, xoá rồi hoàn tác
+xoá chương → đổi màu, cỡ chữ, phím tắt) và ảnh chụp màn hình thật.
+
+---
+
 ## Sau 80%
 
 Theo thứ tự đáng làm trước:

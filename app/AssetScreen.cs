@@ -13,12 +13,12 @@ namespace VNdev.App;
 public partial class AssetScreen : Control
 {
     private readonly LoadedProject _loaded;
-    private readonly DiskFileSystem _fs;
+    private readonly IFileSystem _fs;
     private readonly string _projectDir;
 
     private VBoxContainer _content = null!;
 
-    public AssetScreen(LoadedProject loaded, DiskFileSystem fs, string projectDir)
+    public AssetScreen(LoadedProject loaded, IFileSystem fs, string projectDir)
     {
         _loaded = loaded;
         _fs = fs;

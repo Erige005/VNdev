@@ -45,7 +45,9 @@ Chỉ cần .NET SDK, không cần Godot. Chạy trong vài giây.
 
 ## 1. Tạo dự án
 
-Màn hình chào → **Tạo dự án mới** → chọn một **thư mục trống**. App dựng sẵn
+Màn hình chào: nhập tên dự án → **Tạo dự án mới…** → chọn một **thư mục
+trống**. Bên phải màn hình chào là danh sách **Mở gần đây**: bấm vào một dự án
+để mở lại, bấm ✕ để bỏ khỏi danh sách (thư mục không bị xoá). App dựng sẵn
 cấu trúc này:
 
 ```
@@ -128,13 +130,54 @@ tại dòng đang chọn.
 
 ## 6. Chơi thử
 
-Nút **▶ Chơi thử** góc trên phải. Bấm chuột, Space hoặc Enter để sang dòng.
+Nút **▶ Chơi thử** góc trên phải, hoặc **F5**. Bấm chuột, Space hoặc Enter để sang dòng.
 Bấm **✕ Đóng** để thoát.
 
-## 7. Lưu
+## 7. Lưu và hoàn tác
 
 Không cần bấm lưu: mọi thay đổi được ghi xuống file JSON ngay khi bạn sửa.
-Toàn bộ dự án là file đọc được bằng mắt, đưa lên Git được.
+Thanh trạng thái dưới cùng hiện giờ lưu gần nhất. Toàn bộ dự án là file đọc
+được bằng mắt, đưa lên Git được.
+
+**Ctrl+Z / Ctrl+Y** (hoặc nút ↶ ↷ trên thanh công cụ) hoàn tác và làm lại mọi
+thao tác ở cả bốn tab: thêm, xoá, nối node, sửa lời thoại, tạo nhân vật, xoá
+chương… Gõ liền một mạch được tính là một bước. Khi con trỏ đang ở trong ô
+chữ, Ctrl+Z chỉ hoàn tác chữ trong ô đó. Lịch sử mất khi đóng dự án.
+
+## 8. Menu, phím tắt, cài đặt
+
+Thanh menu góc trên trái:
+
+| Menu | Có gì |
+| --- | --- |
+| **Tệp** | Dự án mới, Mở dự án, Mở gần đây, Mở thư mục dự án, Đóng dự án, Cài đặt, Thoát |
+| **Sửa** | Hoàn tác, Làm lại, Sao chép / Dán / Nhân bản / Xoá node, Chọn tất cả, Thêm node |
+| **Xem** | Chuyển tab, Phóng to / Thu nhỏ / Vừa khung đồ thị, bật tắt lưới và minimap, Toàn màn hình |
+| **Chạy** | Chơi thử |
+| **Trợ giúp** | Danh sách phím tắt, Hướng dẫn, Báo lỗi, Giới thiệu |
+
+Phím tắt mặc định hay dùng: **Ctrl+N** dự án mới, **Ctrl+O** mở, **Ctrl+,**
+cài đặt, **Ctrl+1…4** chuyển tab, **Ctrl+C / Ctrl+V / Ctrl+D** sao chép, dán,
+nhân bản node, **Delete** xoá, **Ctrl+0** vừa khung, **F11** toàn màn hình,
+**F1** xem hết phím tắt.
+
+Chương: nhấp đúp để đổi tên, chuột phải để chuyển lên xuống hoặc xoá.
+Chương đầu tiên là nơi Chơi thử bắt đầu.
+
+**Cài đặt** (Tệp → Cài đặt, hoặc ⚙ ở màn hình chào) áp dụng ngay, không cần
+bấm lưu:
+
+- **Chung**: tự mở lại dự án gần nhất khi khởi động, hỏi trước khi xoá node,
+  xoá danh sách dự án gần đây.
+- **Giao diện**: tỉ lệ giao diện 75–200%, cỡ chữ, màu nhấn, lưới, bắt dính
+  lưới, minimap.
+- **Phím tắt**: bấm vào ô phím rồi nhấn tổ hợp mới. Esc huỷ, Backspace bỏ gán.
+  Trùng với phím của việc khác thì việc kia bị gỡ phím và app báo cho biết.
+- **AI Providers**, **Xuất bản**: chưa có, sẽ làm theo `docs/LO-TRINH.md`.
+
+Cài đặt và danh sách dự án gần đây lưu ở `%APPDATA%\VNdev\settings.json`,
+không nằm trong thư mục dự án, nên không lên Git. App cũng nhớ kích thước và
+vị trí cửa sổ.
 
 ---
 

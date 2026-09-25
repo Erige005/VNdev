@@ -13,6 +13,8 @@ config_version=5
 config/name="VNdev"
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.3", "C#", "Forward Plus")
+config/use_custom_user_dir=true
+config/custom_user_dir_name="VNdev"
 
 [dotnet]
 

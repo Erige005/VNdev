@@ -19,7 +19,21 @@ public static class Palette
     public static readonly Color Text2 = Color.FromHtml("#a0a6b8");
     public static readonly Color Text3 = Color.FromHtml("#6b7386");
 
-    public static readonly Color Accent = Color.FromHtml("#7c6cff");
+    /// <summary>
+    /// Màu nhấn là màu duy nhất người dùng đổi được (Cài đặt → Giao diện), nên
+    /// nó là thuộc tính thay vì hằng. Đổi xong phải dựng lại theme và màn hình
+    /// thì chỗ đã tô màu cũ mới nhận màu mới.
+    /// </summary>
+    public static Color Accent { get; set; } = Color.FromHtml("#7c6cff");
+
+    public static readonly (string Name, string Hex)[] AccentPresets =
+    {
+        ("Tím", "#7c6cff"),
+        ("Xanh dương", "#4f8cff"),
+        ("Hồng", "#ff6ba8"),
+        ("Xanh ngọc", "#25b0a0"),
+        ("Cam", "#f08c38"),
+    };
     public static readonly Color Accent2 = Color.FromHtml("#ff6ba8");
     public static readonly Color Ok = Color.FromHtml("#3ecf8e");
     public static readonly Color Warn = Color.FromHtml("#ffb648");

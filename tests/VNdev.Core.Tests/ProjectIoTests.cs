@@ -181,11 +181,43 @@ public class ProjectIoTests
             var fs = new DiskFileSystem(root);
             Check.Throws<InvalidOperationException>(() => fs.WriteText("../ngoai.txt", "x"));
             Check.Throws<InvalidOperationException>(() => fs.ReadText("scenes/../../etc/passwd"));
+            Check.Throws<InvalidOperationException>(() => fs.DeleteFile("../ngoai.txt"));
         }
         finally
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+}
+
+public class FileSystemTests
+{
+    [Test]
+    public void Xoa_file_tren_dia_va_bo_qua_file_khong_ton_tai()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "vndev_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var fs = new DiskFileSystem(root);
+            fs.WriteText("story/a.graph.json", "{}");
+            fs.DeleteFile("story/a.graph.json");
+            Check.False(fs.Exists("story/a.graph.json"));
+            fs.DeleteFile("story/a.graph.json");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Test]
+    public void Xoa_file_trong_bo_nho()
+    {
+        var fs = new MemoryFileSystem();
+        fs.WriteText("story/a.graph.json", "{}");
+        fs.DeleteFile("story/a.graph.json");
+        Check.False(fs.Exists("story/a.graph.json"));
     }
 }
 

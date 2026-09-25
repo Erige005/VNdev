@@ -20,7 +20,7 @@ public partial class SceneScreen : Control
     private const float FrameHeight = FrameWidth * 9f / 16f;
 
     private readonly LoadedProject _loaded;
-    private readonly DiskFileSystem _fs;
+    private readonly IFileSystem _fs;
     private readonly string _projectDir;
 
     private ItemList _sceneList = null!;
@@ -32,7 +32,7 @@ public partial class SceneScreen : Control
     private string? _currentSceneId;
     private int _selectedLine = -1;
 
-    public SceneScreen(LoadedProject loaded, DiskFileSystem fs, string projectDir)
+    public SceneScreen(LoadedProject loaded, IFileSystem fs, string projectDir)
     {
         _loaded = loaded;
         _fs = fs;
@@ -107,6 +107,20 @@ public partial class SceneScreen : Control
         ProjectIo.SaveScene(_fs, scene);
         RefreshSceneList();
         SelectScene(id);
+    }
+
+    public string? CurrentSceneId => _currentSceneId;
+
+    /// <summary>
+    /// Chọn lại cảnh sau khi màn hình được dựng lại (hoàn tác, đổi cài đặt).
+    /// Khác <see cref="OpenOrCreate"/> ở chỗ không tạo cảnh mới: hoàn tác việc
+    /// tạo cảnh mà lại tạo lại nó thì hoàn tác vô nghĩa.
+    /// </summary>
+    public void TrySelect(string sceneId)
+    {
+        if (!_loaded.Scenes.ContainsKey(sceneId)) return;
+        SelectScene(sceneId);
+        RefreshSceneList();
     }
 
     public void OpenOrCreate(string sceneId)

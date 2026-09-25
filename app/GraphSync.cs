@@ -29,6 +29,20 @@ public sealed class GraphSync
     public event Action? Changed;
     public event Action<StoryNode?>? SelectionChanged;
 
+    /// <summary>
+    /// Người dùng muốn xoá các node này (phím Delete trên canvas). Không xoá
+    /// ngay mà để màn hình quyết định có hỏi xác nhận hay không, rồi gọi
+    /// <see cref="DeleteNodes"/>.
+    /// </summary>
+    public event Action<IReadOnlyList<string>>? DeleteRequested;
+
+    /// <summary>Ctrl+D / Ctrl+C / Ctrl+V bấm ngay trên canvas — GraphEdit tự bắt các phím này.</summary>
+    public event Action? DuplicateRequested;
+    public event Action? CopyRequested;
+    public event Action? PasteRequested;
+
+    public StoryGraph Graph => _graph;
+
     public GraphSync(GraphEdit graphEdit, StoryGraph graph)
     {
         _graphEdit = graphEdit;
@@ -40,6 +54,9 @@ public sealed class GraphSync
         _graphEdit.NodeSelected += node => SelectionChanged?.Invoke(_graph.Find(node.Name.ToString()));
         _graphEdit.NodeDeselected += _ => SelectionChanged?.Invoke(null);
         _graphEdit.EndNodeMove += OnEndNodeMove;
+        _graphEdit.DuplicateNodesRequest += () => DuplicateRequested?.Invoke();
+        _graphEdit.CopyNodesRequest += () => CopyRequested?.Invoke();
+        _graphEdit.PasteNodesRequest += () => PasteRequested?.Invoke();
 
         Rebuild(graph);
     }
@@ -48,6 +65,9 @@ public sealed class GraphSync
     {
         _graph = graph;
         _portHandles.Clear();
+        // GraphEdit giữ danh sách dây riêng, không tự xoá khi node bị gỡ — không
+        // xoá ở đây thì đổi chương xong vẫn còn dây ma trỏ tới node của chương cũ.
+        _graphEdit.ClearConnections();
         foreach (var child in _graphEdit.GetChildren().OfType<GraphNode>().ToList())
         {
             _graphEdit.RemoveChild(child);
@@ -152,9 +172,35 @@ public sealed class GraphSync
 
     private void OnDeleteNodesRequest(Godot.Collections.Array nodes)
     {
-        foreach (var n in nodes)
+        var ids = nodes.Select(n => n.AsString()).ToList();
+        if (ids.Count > 0) DeleteRequested?.Invoke(ids);
+    }
+
+    public IReadOnlyList<string> SelectedIds()
+        => _graphEdit.GetChildren().OfType<GraphNode>().Where(g => g.Selected).Select(g => g.Name.ToString()).ToList();
+
+    public void SelectOnly(ICollection<string> ids)
+    {
+        foreach (var gn in _graphEdit.GetChildren().OfType<GraphNode>()) gn.Selected = ids.Contains(gn.Name.ToString());
+    }
+
+    /// <summary>
+    /// Thêm một loạt node cùng lúc (dán, nhân bản) rồi dựng lại dây một lần —
+    /// thêm từng cái qua <see cref="AddNode"/> thì dây giữa các node mới với
+    /// nhau không được vẽ, vì lúc thêm node đầu thì node đích chưa có mặt.
+    /// </summary>
+    public void AddNodes(IReadOnlyCollection<StoryNode> nodes)
+    {
+        _graph.Nodes.AddRange(nodes);
+        Rebuild(_graph);
+        SelectOnly(nodes.Select(n => n.Id).ToList());
+        Changed?.Invoke();
+    }
+
+    public void DeleteNodes(IEnumerable<string> ids)
+    {
+        foreach (var id in ids)
         {
-            var id = n.AsString();
             _graph.Nodes.RemoveAll(x => x.Id == id);
             foreach (var other in _graph.Nodes) other.ClearLinksTo(id);
 
@@ -173,7 +219,7 @@ public sealed class GraphSync
         Changed?.Invoke();
     }
 
-    private static void SetOutgoing(StoryNode node, string handle, string? target)
+    public static void SetOutgoing(StoryNode node, string handle, string? target)
     {
         switch (node)
         {

@@ -15,7 +15,7 @@ namespace VNdev.App;
 public partial class CharacterScreen : Control
 {
     private readonly LoadedProject _loaded;
-    private readonly DiskFileSystem _fs;
+    private readonly IFileSystem _fs;
     private readonly Action _onChanged;
 
     private ItemList _charList = null!;
@@ -23,7 +23,7 @@ public partial class CharacterScreen : Control
     private VBoxContainer _variablesBox = null!;
     private string? _selectedCharacterId;
 
-    public CharacterScreen(LoadedProject loaded, DiskFileSystem fs, Action onChanged)
+    public CharacterScreen(LoadedProject loaded, IFileSystem fs, Action onChanged)
     {
         _loaded = loaded;
         _fs = fs;
