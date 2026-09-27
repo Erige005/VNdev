@@ -99,12 +99,19 @@ public static class ProjectIo
             characters[id] = ReadJson<CharacterData>(fs, ProjectPaths.Character(id));
         }
 
-        // Cảnh không liệt kê trong project.json — lấy từ các node scene trong đồ
-        // thị, để thêm một cảnh không phải sửa hai file.
-        var sceneIds = graphs.Values
-            .SelectMany(g => g.Nodes)
-            .OfType<SceneNode>()
-            .Select(n => n.Scene)
+        // Cảnh không liệt kê trong project.json, để thêm một cảnh không phải sửa
+        // hai file. Lấy từ hai nguồn: các file trong scenes/ (cảnh vừa soạn ở tab
+        // Cảnh chưa chắc đã có node nào trỏ tới — chỉ dựa vào đồ thị thì mở lại
+        // dự án là cảnh đó biến mất), cộng các node scene trong đồ thị (để id bị
+        // trỏ tới mà thiếu file vẫn lọt qua đây, cho bộ kiểm tra báo thiếu).
+        const string sceneSuffix = ".scene.json";
+        var sceneIds = fs.ListFiles(ProjectPaths.ScenesDir)
+            .Where(name => name.EndsWith(sceneSuffix, StringComparison.Ordinal))
+            .Select(name => name[..^sceneSuffix.Length])
+            .Concat(graphs.Values
+                .SelectMany(g => g.Nodes)
+                .OfType<SceneNode>()
+                .Select(n => n.Scene))
             .Distinct();
 
         var scenes = new Dictionary<string, SceneData>();

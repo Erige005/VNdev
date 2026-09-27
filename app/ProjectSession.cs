@@ -74,8 +74,9 @@ public sealed class ProjectSnapshot
 
     /// <summary>Dựng lại dữ liệu trong bộ nhớ từ bản chụp.</summary>
     /// <remarks>
-    /// Không dùng <see cref="ProjectIo.Load"/> vì hàm đó chỉ nạp những cảnh có
-    /// node trỏ tới, trong khi cảnh vừa tạo ở tab Cảnh chưa chắc đã được nối.
+    /// Không dùng <see cref="ProjectIo.Load"/> vì hàm đó đọc đĩa, còn ở đây dữ
+    /// liệu nằm sẵn trong bản chụp — dựng thẳng từ đó để không phụ thuộc vào
+    /// thứ tự ghi file lúc khôi phục.
     /// </remarks>
     public LoadedProject ToLoaded()
     {

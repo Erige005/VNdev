@@ -161,7 +161,7 @@ bắt được lỗi thật nhiều lần.
 
 ## Trạng thái hiện tại
 
-**Đã xong và đã kiểm chứng (33/33 test pass):**
+**Đã xong và đã kiểm chứng (35/35 test pass):**
 
 - Data model đầy đủ: dự án, chương, 7 loại node, cảnh, lời thoại, nhân vật,
   biểu cảm, biến, điều kiện lồng nhau

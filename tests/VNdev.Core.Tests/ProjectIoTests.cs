@@ -48,6 +48,31 @@ public class ProjectIoTests
     }
 
     [Test]
+    public void Nap_ca_canh_chua_co_node_nao_tro_toi()
+    {
+        var fs = new MemoryFileSystem();
+        ProjectIo.Scaffold(fs, "Test", null, new[] { "vi" });
+        ProjectIo.SaveScene(fs, new SceneData { Id = "canh_moi", Background = "assets/backgrounds/lop.png" });
+
+        var loaded = ProjectIo.Load(fs);
+
+        Check.True(loaded.Scenes.ContainsKey("canh_moi"), "cảnh soạn ở tab Cảnh phải còn sau khi mở lại");
+        Check.Equal("assets/backgrounds/lop.png", loaded.Scenes["canh_moi"].Background);
+    }
+
+    [Test]
+    public void Bo_qua_file_la_trong_thu_muc_canh()
+    {
+        var fs = new MemoryFileSystem();
+        ProjectIo.Scaffold(fs, "Test", null, new[] { "vi" });
+        fs.WriteText("scenes/ghi-chu.txt", "không phải cảnh");
+
+        var loaded = ProjectIo.Load(fs);
+
+        Check.Empty(loaded.Scenes);
+    }
+
+    [Test]
     public void Tao_du_thu_muc_chuan()
     {
         var fs = new MemoryFileSystem();
