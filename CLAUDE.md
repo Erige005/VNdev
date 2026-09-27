@@ -252,6 +252,28 @@ Ghi lại để không đi lại đường cũ.
 
 ---
 
+## Giữ trí nhớ giữa các phiên — bắt buộc
+
+Nam hay mở phiên mới (terminal, Cursor) và cần phiên đó biết việc nào đã
+xong. Hai nguồn, theo thứ tự tin cậy:
+
+1. **Lịch sử Git** — hook `SessionStart` trong `.claude/settings.json` tự in
+   10 commit gần nhất và các file đang sửa dở vào đầu mỗi phiên. Đây là sự
+   thật; ghi chú nói khác thì tin Git.
+2. **`CLAUDE.local.md`** (không lên Git) — việc đã làm theo ngày, điều Nam
+   muốn, thông tin hay cần, việc tiếp theo.
+
+**Xong mỗi việc** (sửa xong một lỗi, làm xong một tính năng, kể cả chưa
+commit) thì cập nhật ngay `CLAUDE.local.md`: chuyển việc đó từ "Việc tiếp
+theo" sang "Đã làm", ghi ngày và mã commit nếu có. Đừng để tới cuối phiên —
+phiên có thể bị đóng giữa chừng. Commit mỗi việc riêng, tên commit nói rõ
+đã làm gì, để lịch sử Git đọc lên là hiểu.
+
+Thấy file đang sửa dở mà không phải do mình (hook báo ở đầu phiên) thì có
+thể là phiên khác đang làm — hỏi Nam trước khi đụng vào.
+
+---
+
 ## Khi không chắc
 
 Người dùng đã nhiều lần phải sửa lại hướng đi vì quyết định được đưa ra mà

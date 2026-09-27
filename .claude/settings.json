@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && echo \"## Git — 10 commit gần nhất (sự thật về những gì đã xong)\" && git log --oneline --date=short --format=\"%h %ad %s\" -10 && echo && echo \"## Git — file đang sửa dở, chưa commit\" && { s=$(git status --short); [ -n \"$s\" ] && echo \"$s\" | head -30 || echo \"(không có)\"; } && echo && echo \"Nếu CLAUDE.local.md nói khác lịch sử Git ở trên thì tin Git, rồi cập nhật lại CLAUDE.local.md.\" 2>/dev/null || true",
+            "timeout": 15,
+            "statusMessage": "Đọc lịch sử Git của dự án…"
+          }
+        ]
+      }
+    ]
+  }
+}

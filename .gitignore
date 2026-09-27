@@ -67,3 +67,6 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Ghi chú cá nhân cho Claude (trí nhớ các buổi chat) — không đưa lên Git
+CLAUDE.local.md
