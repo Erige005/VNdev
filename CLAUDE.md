@@ -175,7 +175,7 @@ bắt được lỗi thật nhiều lần.
 
 **Godot — Chặng 1 đến 6, đạt mốc 80%** (`app/`, xem `docs/LO-TRINH.md`): màn
 hình chào, Story Graph editor (`GraphEdit`), quản lý nhân vật + biến, thư
-viện asset đọc thật từ đĩa, trình soạn cảnh có preview `StageAt()`, và bộ
+viện asset đọc thật từ đĩa, trình soạn cảnh có preview `StageAt()` (giao diện đặt nhân vật & nhạc nền đã làm bằng Gemini, sau này cần kiểm tra lại), và bộ
 thông dịch chạy được cả câu chuyện (bấm ▶ Chơi thử) — có ảnh thật, nhạc thật
 (ogg/mp3), biến đổi theo lựa chọn, tới đúng màn Kết thúc. Đã kiểm chứng bằng
 kịch bản `--headless` đi hết một lượt: tạo nhân vật → quét asset → soạn cảnh
@@ -192,7 +192,7 @@ sổ, thanh trạng thái, thông báo nhỏ. Xem "Hoàn thiện app" trong
 hình mới phải nhận `IFileSystem` từ phiên, không tự tạo `DiskFileSystem`,
 không thì thao tác ở đó không hoàn tác được.
 
-**Trợ lý AI (xong, chưa thử với khoá thật):** khung chat bên phải (Ctrl+L),
+**Trợ lý AI (đã làm với Gemini, sau này cần kiểm tra lại):** khung chat bên phải (Ctrl+L),
 người dùng tự thêm API key. Xem "Trợ lý AI" trong `docs/LO-TRINH.md`. Trợ lý
 là agent: có công cụ làm mọi việc trong app (tạo nhân vật, chương, cảnh, dựng
 đồ thị, biến — `app/Ai/ProjectTools*.cs`). Hai điều không được phá: mọi thay
