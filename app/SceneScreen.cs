@@ -28,6 +28,7 @@ public partial class SceneScreen : Control
     private Control _stage = null!;
     private VBoxContainer _lineInspector = null!;
     private OptionButton _bgPicker = null!;
+    private OptionButton _bgmPicker = null!;
 
     private string? _currentSceneId;
     private int _selectedLine = -1;
@@ -169,6 +170,22 @@ public partial class SceneScreen : Control
         };
         bar.AddChild(_bgPicker);
 
+        var bgmLabel = new Label { Text = "Nhạc:" };
+        bgmLabel.AddThemeColorOverride("font_color", Palette.Text3);
+        bar.AddChild(bgmLabel);
+
+        _bgmPicker = new OptionButton();
+        _bgmPicker.ItemSelected += idx =>
+        {
+            if (_currentSceneId is null) return;
+            var scene = _loaded.Scenes[_currentSceneId];
+            var bgms = AssetIndex.Bgm(_fs);
+            var src = idx == 0 ? null : bgms[(int)idx - 1];
+            scene.Bgm = src == null ? null : new AudioCue { Src = src };
+            SaveCurrentScene();
+        };
+        bar.AddChild(_bgmPicker);
+
         return bar;
     }
 
@@ -177,14 +194,26 @@ public partial class SceneScreen : Control
         _bgPicker.Clear();
         _bgPicker.AddItem("— không nền —");
         var backgrounds = AssetIndex.Backgrounds(_fs);
-        var current = _currentSceneId is not null ? _loaded.Scenes[_currentSceneId].Background : null;
-        var selected = 0;
+        var currentBg = _currentSceneId is not null ? _loaded.Scenes[_currentSceneId].Background : null;
+        var selectedBg = 0;
         for (var i = 0; i < backgrounds.Count; i++)
         {
             _bgPicker.AddItem(Path.GetFileName(backgrounds[i]));
-            if (backgrounds[i] == current) selected = i + 1;
+            if (backgrounds[i] == currentBg) selectedBg = i + 1;
         }
-        _bgPicker.Selected = selected;
+        _bgPicker.Selected = selectedBg;
+
+        _bgmPicker.Clear();
+        _bgmPicker.AddItem("— không nhạc —");
+        var bgms = AssetIndex.Bgm(_fs);
+        var currentBgm = _currentSceneId is not null ? _loaded.Scenes[_currentSceneId].Bgm?.Src : null;
+        var selectedBgm = 0;
+        for (var i = 0; i < bgms.Count; i++)
+        {
+            _bgmPicker.AddItem(Path.GetFileName(bgms[i]));
+            if (bgms[i] == currentBgm) selectedBgm = i + 1;
+        }
+        _bgmPicker.Selected = selectedBgm;
     }
 
     // ---------- sân khấu ----------
@@ -330,15 +359,19 @@ public partial class SceneScreen : Control
     {
         foreach (var child in _lineInspector.GetChildren()) child.QueueFree();
 
-        if (_currentSceneId is null || _selectedLine < 0)
+        if (_currentSceneId is null) return;
+        var scene = _loaded.Scenes[_currentSceneId];
+
+        if (_selectedLine < 0)
         {
-            var hint = new Label { Text = "Chọn một dòng thoại để chỉnh.", AutowrapMode = TextServer.AutowrapMode.WordSmart };
+            var hint = new Label { Text = "SÂN KHẤU ĐẦU CẢNH" };
             hint.AddThemeColorOverride("font_color", Palette.Text3);
             _lineInspector.AddChild(hint);
+
+            BuildActorListEditor(scene.Stage);
             return;
         }
 
-        var scene = _loaded.Scenes[_currentSceneId];
         if (_selectedLine >= scene.Lines.Count) return;
         var line = scene.Lines[_selectedLine];
 
@@ -380,6 +413,124 @@ public partial class SceneScreen : Control
             RefreshLineListLabelOnly();
         };
         AddLabeled(_lineInspector, "Nội dung", textEdit);
+
+        var spacer = new Control { CustomMinimumSize = new Vector2(0, 16) };
+        _lineInspector.AddChild(spacer);
+        var stageTitle = new Label { Text = "THAY ĐỔI SÂN KHẤU" };
+        stageTitle.AddThemeColorOverride("font_color", Palette.Text3);
+        _lineInspector.AddChild(stageTitle);
+
+        if (line.StageChanges == null) line.StageChanges = new System.Collections.Generic.List<StageActor>();
+        BuildActorListEditor(line.StageChanges);
+    }
+
+    private void BuildActorListEditor(System.Collections.Generic.List<StageActor> actors)
+    {
+        for (var i = 0; i < actors.Count; i++)
+        {
+            var actor = actors[i];
+            var panel = new PanelContainer();
+            panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = Palette.Panel2, ContentMarginLeft = 8, ContentMarginTop = 8, ContentMarginRight = 8, ContentMarginBottom = 8 });
+            var box = new VBoxContainer();
+            panel.AddChild(box);
+
+            var headerBox = new HBoxContainer();
+            var charBtn = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            
+            var charIds = _loaded.Project.Characters;
+            charBtn.AddItem("— Chọn nhân vật —");
+            var selectedIdx = 0;
+            for (var c = 0; c < charIds.Count; c++)
+            {
+                charBtn.AddItem(_loaded.Characters[charIds[c]].DisplayName[_loaded.Project.PrimaryLocale] ?? charIds[c]);
+                if (charIds[c] == actor.Character) selectedIdx = c + 1;
+            }
+            charBtn.Selected = selectedIdx;
+            
+            var removeBtn = new Button { Text = "X" };
+            headerBox.AddChild(charBtn);
+            headerBox.AddChild(removeBtn);
+            box.AddChild(headerBox);
+
+            var exprBtn = new OptionButton();
+            if (actor.Character != "" && _loaded.Characters.TryGetValue(actor.Character, out var spk))
+            {
+                for (var e = 0; e < spk.Expressions.Count; e++)
+                {
+                    exprBtn.AddItem(spk.Expressions[e].Id);
+                    if (spk.Expressions[e].Id == actor.Expression) exprBtn.Selected = e;
+                }
+            }
+            else
+            {
+                exprBtn.AddItem("—");
+                exprBtn.Disabled = true;
+            }
+            box.AddChild(exprBtn);
+
+            var anchorBtn = new OptionButton();
+            anchorBtn.AddItem("Far Left");
+            anchorBtn.AddItem("Left");
+            anchorBtn.AddItem("Center");
+            anchorBtn.AddItem("Right");
+            anchorBtn.AddItem("Far Right");
+            anchorBtn.Selected = actor.Anchor switch
+            {
+                StageAnchor.FarLeft => 0,
+                StageAnchor.Left => 1,
+                StageAnchor.Center => 2,
+                StageAnchor.Right => 3,
+                StageAnchor.FarRight => 4,
+                _ => 2
+            };
+            box.AddChild(anchorBtn);
+
+            var actorIndex = i;
+            charBtn.ItemSelected += idx =>
+            {
+                if (idx == 0) return;
+                actor.Character = charIds[(int)idx - 1];
+                if (_loaded.Characters.TryGetValue(actor.Character, out var newChar) && newChar.Expressions.Count > 0)
+                {
+                    actor.Expression = newChar.Expressions[0].Id;
+                }
+                SaveCurrentScene();
+                RefreshLineInspector();
+                RedrawStage();
+            };
+            exprBtn.ItemSelected += idx =>
+            {
+                if (actor.Character == "" || !_loaded.Characters.TryGetValue(actor.Character, out var chr)) return;
+                actor.Expression = chr.Expressions[(int)idx].Id;
+                SaveCurrentScene();
+                RedrawStage();
+            };
+            anchorBtn.ItemSelected += idx =>
+            {
+                actor.Anchor = (StageAnchor)idx;
+                SaveCurrentScene();
+                RedrawStage();
+            };
+            removeBtn.Pressed += () =>
+            {
+                actors.RemoveAt(actorIndex);
+                SaveCurrentScene();
+                RefreshLineInspector();
+                RedrawStage();
+            };
+
+            _lineInspector.AddChild(panel);
+        }
+
+        var addBtn = new Button { Text = "+ Thêm diễn viên" };
+        addBtn.Pressed += () =>
+        {
+            actors.Add(new StageActor { Anchor = StageAnchor.Center });
+            SaveCurrentScene();
+            RefreshLineInspector();
+            RedrawStage();
+        };
+        _lineInspector.AddChild(addBtn);
     }
 
     private void RefreshLineListLabelOnly()
