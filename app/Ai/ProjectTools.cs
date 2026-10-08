@@ -116,7 +116,7 @@ public sealed partial class ProjectTools
                 "Đọc đồ thị cốt truyện của một chương: mọi node (cảnh, lựa chọn, điều kiện, biến, nhảy, kết thúc), các nhánh nối với nhau thế nào, điểm bắt đầu, và lỗi đồ thị.",
                 Obj(new JsonObject { ["chapter_id"] = Str("id chương") }, "chapter_id")),
             new("get_scene",
-                "Đọc toàn bộ lời thoại một cảnh, có số thứ tự từng dòng (index bắt đầu từ 0), người nói và biểu cảm.",
+                "Đọc toàn bộ lời thoại một cảnh, có số thứ tự từng dòng (index bắt đầu từ 0), người nói, biểu cảm, ai đứng sẵn trên sân khấu và thay đổi sân khấu tại từng dòng.",
                 Obj(new JsonObject { ["scene_id"] = Str("id cảnh") }, "scene_id")),
             new("get_character",
                 "Đọc hồ sơ một nhân vật: tên, biểu cảm có sẵn, hồ sơ giọng (tính cách, cách xưng hô, cách nói).",
@@ -351,7 +351,7 @@ public sealed partial class ProjectTools
         {
             id = s.Id,
             background = s.Background,
-            onStageAtStart = s.Stage.Select(a => $"{a.Character} ({a.Expression})"),
+            onStageAtStart = s.Stage.Select(a => $"{a.Character} ({a.Expression}, {a.Anchor})"),
             usedIn = SceneUsage().GetValueOrDefault(s.Id),
             lines = s.Lines.Select((l, i) => new
             {
@@ -359,6 +359,7 @@ public sealed partial class ProjectTools
                 speaker = l.Speaker is null ? "(dẫn truyện)" : $"{l.Speaker} — {SpeakerName(l.Speaker)}",
                 expression = l.Expression,
                 text = l.Text[Locale],
+                stageChanges = l.StageChanges is { Count: > 0 } ch ? ChangeText(ch) : null,
             }),
         }), $"📖 Đọc cảnh \"{s.Id}\" ({s.Lines.Count} dòng)");
     }

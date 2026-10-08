@@ -53,6 +53,13 @@ public sealed partial class ProjectTools
             ["expression"] = Str("id biểu cảm (tuỳ chọn)"),
             ["text"] = Str("nội dung"),
         }, "text");
+        var stageChange = Obj(new JsonObject
+        {
+            ["character"] = Str("id nhân vật"),
+            ["expression"] = Str("id biểu cảm mới; bỏ trống để giữ biểu cảm đang có"),
+            ["anchor"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("farLeft", "left", "center", "right", "farRight"), ["description"] = "chỗ đứng mới; bỏ trống để giữ chỗ cũ (nhân vật mới bước ra thì đứng giữa)" },
+            ["leave"] = Bool("true nếu nhân vật rời sân khấu tại dòng này"),
+        }, "character");
         var actor = Obj(new JsonObject
         {
             ["character"] = Str("id nhân vật"),
@@ -150,13 +157,18 @@ public sealed partial class ProjectTools
                     ["lines"] = Arr(line, "lời thoại"),
                 })),
             new("update_scene",
-                "Đổi nền, nhạc nền hoặc nhân vật đứng sẵn trên sân khấu của một cảnh có sẵn. Sửa lời thoại thì dùng propose_dialogue_edit.",
+                "Đổi nền, nhạc nền, nhân vật đứng sẵn trên sân khấu, hoặc thay đổi sân khấu tại từng dòng thoại (ai bước ra, đổi biểu cảm, đổi chỗ, rời đi) của một cảnh có sẵn. Sửa lời thoại thì dùng propose_dialogue_edit.",
                 Obj(new JsonObject
                 {
                     ["scene_id"] = Str("id cảnh"),
                     ["background"] = Str("ảnh nền mới; chuỗi rỗng để bỏ nền"),
                     ["bgm"] = Str("nhạc nền mới; chuỗi rỗng để tắt nhạc"),
                     ["stage"] = Arr(actor, "thay toàn bộ danh sách nhân vật đứng sẵn"),
+                    ["line_stage"] = Arr(Obj(new JsonObject
+                    {
+                        ["index"] = new JsonObject { ["type"] = "integer", ["description"] = "số thứ tự dòng theo get_scene (từ 0)" },
+                        ["changes"] = Arr(stageChange, "thay toàn bộ thay đổi sân khấu của dòng này; mảng rỗng để bỏ hết"),
+                    }, "index", "changes"), "thay đổi sân khấu tại từng dòng thoại: nhân vật bước ra, đổi biểu cảm, đổi chỗ đứng hoặc rời sân khấu từ dòng đó trở đi"),
                 }, "scene_id")),
             new("edit_graph",
                 "Dựng và sửa đồ thị cốt truyện của một chương trong một lần: thêm node, sửa node, xoá node, nối dây, đặt điểm bắt đầu. Node mới đặt 'ref' tạm để nối dây; trong links, from/to là ref hoặc id node có sẵn. Cổng ra (port): với node choice là ref hoặc id phương án; với node condition là \"true\"/\"false\"; node khác bỏ trống. to = null để gỡ dây.",
@@ -469,14 +481,7 @@ public sealed partial class ProjectTools
             var ch = FindCharacter(who);
             var expr = NullIfEmpty(OptArg(o, "expression")) ?? ch.DefaultExpression;
             CheckSpeaker(who, expr);
-            var anchor = (OptArg(o, "anchor") ?? "center") switch
-            {
-                "farLeft" => StageAnchor.FarLeft,
-                "left" => StageAnchor.Left,
-                "right" => StageAnchor.Right,
-                "farRight" => StageAnchor.FarRight,
-                _ => StageAnchor.Center,
-            };
+            var anchor = ParseAnchor(OptArg(o, "anchor")) ?? StageAnchor.Center;
             list.Add(new StageActor { Character = who, Expression = expr, Anchor = anchor });
         }
         return list;
@@ -484,6 +489,57 @@ public sealed partial class ProjectTools
 
     private string StageText(IEnumerable<StageActor> stage)
         => string.Join(", ", stage.Select(s => $"{SpeakerName(s.Character)} ({s.Expression}, {s.Anchor})"));
+
+    private static StageAnchor? ParseAnchor(string? raw) => raw switch
+    {
+        null or "" => null,
+        "farLeft" => StageAnchor.FarLeft,
+        "left" => StageAnchor.Left,
+        "right" => StageAnchor.Right,
+        "farRight" => StageAnchor.FarRight,
+        _ => StageAnchor.Center,
+    };
+
+    /// <summary>
+    /// Đọc thay đổi sân khấu theo dòng; giữ id dòng thay vì số thứ tự để lúc áp
+    /// dụng vẫn đúng dòng dù người dùng đã chèn/xoá dòng khác khi đọc thẻ.
+    /// </summary>
+    private List<(string LineId, int Index, List<StageActor> Changes)> ParseLineStage(SceneData scene, JsonArray? arr)
+    {
+        var result = new List<(string LineId, int Index, List<StageActor> Changes)>();
+        foreach (var node in arr ?? new JsonArray())
+        {
+            if (node is not JsonObject o) continue;
+            var index = o["index"]?.GetValue<int>() ?? throw new ToolInputException("Mỗi mục line_stage cần index.");
+            if (index < 0 || index >= scene.Lines.Count)
+                throw new ToolInputException($"Dòng {index} không có trong cảnh (cảnh có {scene.Lines.Count} dòng, index 0–{scene.Lines.Count - 1}).");
+            if (result.Any(r => r.Index == index)) throw new ToolInputException($"Dòng {index} xuất hiện hai lần trong line_stage — gộp lại thành một mục.");
+
+            var changes = new List<StageActor>();
+            foreach (var c in o["changes"] as JsonArray ?? new JsonArray())
+            {
+                if (c is not JsonObject co) continue;
+                var who = Arg(co, "character");
+                FindCharacter(who);
+                if (changes.Any(x => x.Character == who)) throw new ToolInputException($"Nhân vật \"{who}\" có hai thay đổi ở dòng {index} — mỗi nhân vật một thay đổi mỗi dòng.");
+                if (co["leave"]?.GetValue<bool>() == true)
+                {
+                    changes.Add(new StageActor { Character = who, Exit = new Motion() });
+                    continue;
+                }
+                var expr = NullIfEmpty(OptArg(co, "expression"));
+                if (expr is not null) CheckSpeaker(who, expr);
+                changes.Add(new StageActor { Character = who, Expression = expr ?? string.Empty, Anchor = ParseAnchor(OptArg(co, "anchor")) });
+            }
+            result.Add((scene.Lines[index].Id, index, changes));
+        }
+        return result;
+    }
+
+    private string ChangeText(IEnumerable<StageActor> changes)
+        => string.Join(", ", changes.Select(c => c.Exit is not null
+            ? $"{SpeakerName(c.Character)} rời đi"
+            : $"{SpeakerName(c.Character)} ({(c.Expression.Length > 0 ? c.Expression : "giữ biểu cảm")}, {c.Anchor?.ToString() ?? "giữ chỗ"})"));
 
     private ToolOutcome CreateScene(JsonObject a)
     {
@@ -543,12 +599,20 @@ public sealed partial class ProjectTools
         if (setBgm) CheckAsset(bgm, AssetIndex.Bgm(fs), "nhạc nền");
         var setStage = a["stage"] is JsonArray;
         var stage = ParseStage(a["stage"] as JsonArray);
-        if (!setBg && !setBgm && !setStage) throw new ToolInputException("Gửi background, bgm hoặc stage.");
+        var lineStage = ParseLineStage(s, a["line_stage"] as JsonArray);
+        if (!setBg && !setBgm && !setStage && lineStage.Count == 0) throw new ToolInputException("Gửi background, bgm, stage hoặc line_stage.");
 
         var diff = new List<DiffLine>();
         if (setBg) { diff.Add(new(DiffKind.Removed, $"Nền: {s.Background ?? "(không)"}")); diff.Add(new(DiffKind.Added, $"Nền: {background ?? "(không)"}")); }
         if (setBgm) { diff.Add(new(DiffKind.Removed, $"Nhạc: {s.Bgm?.Src ?? "(không)"}")); diff.Add(new(DiffKind.Added, $"Nhạc: {bgm ?? "(không)"}")); }
         if (setStage) { diff.Add(new(DiffKind.Removed, $"Sân khấu: {StageText(s.Stage)}")); diff.Add(new(DiffKind.Added, $"Sân khấu: {StageText(stage)}")); }
+        foreach (var (_, index, changes) in lineStage)
+        {
+            var before = s.Lines[index];
+            diff.Add(new(DiffKind.Context, $"Dòng {index}: {LineText(before.Speaker, before.Text[Locale] ?? "")}"));
+            if (before.StageChanges is { Count: > 0 }) diff.Add(new(DiffKind.Removed, $"   Sân khấu: {ChangeText(before.StageChanges)}"));
+            diff.Add(new(DiffKind.Added, changes.Count == 0 ? "   Sân khấu: (không đổi gì)" : $"   Sân khấu: {ChangeText(changes)}"));
+        }
 
         return Propose(new Proposal
         {
@@ -560,6 +624,12 @@ public sealed partial class ProjectTools
                 if (setBg) cur.Background = background;
                 if (setBgm) cur.Bgm = bgm is null ? null : new AudioCue { Src = bgm, Volume = cur.Bgm?.Volume ?? 0.6f, Loop = true };
                 if (setStage) cur.Stage = stage;
+                foreach (var (lineId, _, changes) in lineStage)
+                {
+                    var target = cur.Lines.FirstOrDefault(l => l.Id == lineId);
+                    if (target is null) return "Một dòng thoại cần đổi sân khấu đã bị xoá.";
+                    target.StageChanges = changes.Count == 0 ? null : changes;
+                }
                 ProjectIo.SaveScene(_session.Fs, cur);
                 return null;
             },
