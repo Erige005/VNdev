@@ -260,6 +260,17 @@ public partial class SceneScreen : Control
         header.AddChild(lbl);
         var spacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         header.AddChild(spacer);
+        // Sân khấu đầu cảnh chỉ soạn được khi không chọn dòng nào; không có nút
+        // này thì đã bấm vào một dòng là hết đường quay lại, trừ khi đổi cảnh.
+        var opening = new Button { Text = "Sân khấu đầu cảnh", TooltipText = "Bỏ chọn dòng để soạn ai đứng sẵn khi cảnh mở ra" };
+        opening.Pressed += () =>
+        {
+            _selectedLine = -1;
+            _lineList.DeselectAll();
+            RedrawStage();
+            RefreshLineInspector();
+        };
+        header.AddChild(opening);
         var up = new Button { Text = "↑" };
         up.Pressed += () => MoveLine(-1);
         var down = new Button { Text = "↓" };
@@ -368,7 +379,7 @@ public partial class SceneScreen : Control
             hint.AddThemeColorOverride("font_color", Palette.Text3);
             _lineInspector.AddChild(hint);
 
-            BuildActorListEditor(scene.Stage);
+            BuildActorListEditor(scene.Stage, isChange: false);
             return;
         }
 
@@ -420,15 +431,57 @@ public partial class SceneScreen : Control
         stageTitle.AddThemeColorOverride("font_color", Palette.Text3);
         _lineInspector.AddChild(stageTitle);
 
-        if (line.StageChanges == null) line.StageChanges = new System.Collections.Generic.List<StageActor>();
-        BuildActorListEditor(line.StageChanges);
+        // Chỉ tạo danh sách khi người dùng thật sự thêm thay đổi: ghi "stageChanges": []
+        // vào mọi dòng chỉ vì bấm chọn dòng đó sẽ làm Git báo thay đổi vô cớ.
+        var changes = line.StageChanges ?? new List<StageActor>();
+        BuildActorListEditor(changes, isChange: true, onChanged: () => line.StageChanges = changes.Count == 0 ? null : changes);
     }
 
-    private void BuildActorListEditor(System.Collections.Generic.List<StageActor> actors)
+    private static readonly (StageAnchor Anchor, string Label)[] AnchorChoices =
     {
+        (StageAnchor.FarLeft, "Rìa trái"),
+        (StageAnchor.Left, "Trái"),
+        (StageAnchor.Center, "Giữa"),
+        (StageAnchor.Right, "Phải"),
+        (StageAnchor.FarRight, "Rìa phải"),
+    };
+
+    /// <summary>
+    /// Soạn một danh sách diễn viên — sân khấu đầu cảnh hoặc thay đổi tại một dòng.
+    /// </summary>
+    /// <remarks>
+    /// Với thay đổi tại dòng, "giữ nguyên" biểu cảm/vị trí là lựa chọn hợp lệ
+    /// (để trống trường đó) vì <see cref="SceneData.StageAt"/> gộp thay đổi lên
+    /// trạng thái đang có; sân khấu đầu cảnh thì không có gì để giữ nên luôn
+    /// phải chọn cụ thể.
+    /// </remarks>
+    private void BuildActorListEditor(List<StageActor> actors, bool isChange, Action? onChanged = null)
+    {
+        void Commit()
+        {
+            onChanged?.Invoke();
+            SaveCurrentScene();
+        }
+
+        var charIds = _loaded.Project.Characters;
+        if (charIds.Count == 0)
+        {
+            var hint = new Label
+            {
+                Text = "Dự án chưa có nhân vật. Tạo nhân vật ở tab Nhân vật rồi quay lại đây.",
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            hint.AddThemeColorOverride("font_color", Palette.Text3);
+            _lineInspector.AddChild(hint);
+            return;
+        }
+
         for (var i = 0; i < actors.Count; i++)
         {
             var actor = actors[i];
+            var actorIndex = i;
+            _loaded.Characters.TryGetValue(actor.Character, out var character);
+
             var panel = new PanelContainer();
             panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = Palette.Panel2, ContentMarginLeft = 8, ContentMarginTop = 8, ContentMarginRight = 8, ContentMarginBottom = 8 });
             var box = new VBoxContainer();
@@ -436,102 +489,151 @@ public partial class SceneScreen : Control
 
             var headerBox = new HBoxContainer();
             var charBtn = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            
-            var charIds = _loaded.Project.Characters;
-            charBtn.AddItem("— Chọn nhân vật —");
-            var selectedIdx = 0;
             for (var c = 0; c < charIds.Count; c++)
             {
-                charBtn.AddItem(_loaded.Characters[charIds[c]].DisplayName[_loaded.Project.PrimaryLocale] ?? charIds[c]);
-                if (charIds[c] == actor.Character) selectedIdx = c + 1;
+                charBtn.AddItem(CharacterName(charIds[c]));
+                // Một nhân vật chỉ đứng một chỗ: StageAt gom theo id nhân vật, chọn
+                // trùng thì mục sau âm thầm đè mục trước mà người dùng không hay.
+                if (charIds[c] != actor.Character && actors.Any(a => a.Character == charIds[c])) charBtn.SetItemDisabled(c, true);
             }
-            charBtn.Selected = selectedIdx;
-            
-            var removeBtn = new Button { Text = "X" };
+            charBtn.Selected = charIds.IndexOf(actor.Character);
+            charBtn.ItemSelected += idx =>
+            {
+                actor.Character = charIds[(int)idx];
+                var entering = !isChange || !OnStageBefore(actor.Character);
+                actor.Expression = entering ? DefaultExpressionOf(actor.Character) : string.Empty;
+                if (entering) actor.Anchor ??= StageAnchor.Center;
+                Commit();
+                RefreshLineInspector();
+                RedrawStage();
+            };
+
+            var removeBtn = new Button { Text = "✕", TooltipText = "Bỏ mục này" };
+            removeBtn.Pressed += () =>
+            {
+                actors.RemoveAt(actorIndex);
+                Commit();
+                RefreshLineInspector();
+                RedrawStage();
+            };
             headerBox.AddChild(charBtn);
             headerBox.AddChild(removeBtn);
             box.AddChild(headerBox);
 
-            var exprBtn = new OptionButton();
-            if (actor.Character != "" && _loaded.Characters.TryGetValue(actor.Character, out var spk))
+            if (isChange)
             {
-                for (var e = 0; e < spk.Expressions.Count; e++)
+                var leave = new CheckBox { Text = "Rời sân khấu tại dòng này", ButtonPressed = actor.Exit is not null };
+                leave.Toggled += on =>
                 {
-                    exprBtn.AddItem(spk.Expressions[e].Id);
-                    if (spk.Expressions[e].Id == actor.Expression) exprBtn.Selected = e;
+                    actor.Exit = on ? new Motion() : null;
+                    Commit();
+                    RefreshLineInspector();
+                    RedrawStage();
+                };
+                box.AddChild(leave);
+                if (actor.Exit is not null)
+                {
+                    _lineInspector.AddChild(panel);
+                    continue;
                 }
             }
-            else
+
+            var expressions = character?.Expressions.Select(e => e.Id).ToList() ?? new List<string>();
+            var exprBtn = new OptionButton();
+            var exprOffset = isChange ? 1 : 0;
+            if (isChange) exprBtn.AddItem("— giữ biểu cảm —");
+            foreach (var e in expressions) exprBtn.AddItem(e);
+            if (exprBtn.ItemCount == 0)
             {
-                exprBtn.AddItem("—");
+                exprBtn.AddItem("— chưa có biểu cảm —");
                 exprBtn.Disabled = true;
             }
+            var exprIdx = expressions.IndexOf(actor.Expression);
+            exprBtn.Selected = exprIdx >= 0 ? exprIdx + exprOffset : 0;
+            exprBtn.ItemSelected += idx =>
+            {
+                var at = (int)idx - exprOffset;
+                actor.Expression = at >= 0 && at < expressions.Count ? expressions[at] : string.Empty;
+                Commit();
+                RedrawStage();
+            };
             box.AddChild(exprBtn);
 
             var anchorBtn = new OptionButton();
-            anchorBtn.AddItem("Far Left");
-            anchorBtn.AddItem("Left");
-            anchorBtn.AddItem("Center");
-            anchorBtn.AddItem("Right");
-            anchorBtn.AddItem("Far Right");
-            anchorBtn.Selected = actor.Anchor switch
-            {
-                StageAnchor.FarLeft => 0,
-                StageAnchor.Left => 1,
-                StageAnchor.Center => 2,
-                StageAnchor.Right => 3,
-                StageAnchor.FarRight => 4,
-                _ => 2
-            };
-            box.AddChild(anchorBtn);
-
-            var actorIndex = i;
-            charBtn.ItemSelected += idx =>
-            {
-                if (idx == 0) return;
-                actor.Character = charIds[(int)idx - 1];
-                if (_loaded.Characters.TryGetValue(actor.Character, out var newChar) && newChar.Expressions.Count > 0)
-                {
-                    actor.Expression = newChar.Expressions[0].Id;
-                }
-                SaveCurrentScene();
-                RefreshLineInspector();
-                RedrawStage();
-            };
-            exprBtn.ItemSelected += idx =>
-            {
-                if (actor.Character == "" || !_loaded.Characters.TryGetValue(actor.Character, out var chr)) return;
-                actor.Expression = chr.Expressions[(int)idx].Id;
-                SaveCurrentScene();
-                RedrawStage();
-            };
+            var anchorOffset = isChange ? 1 : 0;
+            if (isChange) anchorBtn.AddItem("— giữ vị trí —");
+            foreach (var (_, label) in AnchorChoices) anchorBtn.AddItem(label);
+            var anchorIdx = System.Array.FindIndex(AnchorChoices, x => x.Anchor == actor.Anchor);
+            anchorBtn.Selected = anchorIdx >= 0 ? anchorIdx + anchorOffset : (isChange ? 0 : 2);
             anchorBtn.ItemSelected += idx =>
             {
-                actor.Anchor = (StageAnchor)idx;
-                SaveCurrentScene();
+                var at = (int)idx - anchorOffset;
+                actor.Anchor = at >= 0 ? AnchorChoices[at].Anchor : null;
+                Commit();
                 RedrawStage();
             };
-            removeBtn.Pressed += () =>
-            {
-                actors.RemoveAt(actorIndex);
-                SaveCurrentScene();
-                RefreshLineInspector();
-                RedrawStage();
-            };
+            box.AddChild(anchorBtn);
 
             _lineInspector.AddChild(panel);
         }
 
-        var addBtn = new Button { Text = "+ Thêm diễn viên" };
+        var free = charIds.FirstOrDefault(id => actors.All(a => a.Character != id));
+        var addBtn = new Button
+        {
+            Text = isChange ? "+ Thêm thay đổi" : "+ Thêm nhân vật lên sân khấu",
+            Disabled = free is null,
+            TooltipText = free is null ? "Mọi nhân vật đều đã có trong danh sách." : "",
+        };
         addBtn.Pressed += () =>
         {
-            actors.Add(new StageActor { Anchor = StageAnchor.Center });
-            SaveCurrentScene();
+            if (free is null) return;
+            // Nhân vật chưa có mặt thì phải bước ra với biểu cảm và chỗ đứng cụ
+            // thể; đang đứng sẵn thì mặc định "giữ nguyên", chỉ đổi cái người
+            // dùng chọn.
+            var entering = !isChange || !OnStageBefore(free);
+            actors.Add(new StageActor
+            {
+                Character = free,
+                Expression = entering ? DefaultExpressionOf(free) : string.Empty,
+                Anchor = entering ? FreeAnchor(isChange ? StageBefore() : actors) : null,
+            });
+            Commit();
             RefreshLineInspector();
             RedrawStage();
         };
         _lineInspector.AddChild(addBtn);
     }
+
+    /// <summary>Sân khấu ngay trước dòng đang chọn — nền để gộp thay đổi của dòng này lên.</summary>
+    private List<StageActor> StageBefore()
+    {
+        if (_currentSceneId is null) return new List<StageActor>();
+        var scene = _loaded.Scenes[_currentSceneId];
+        return _selectedLine > 0 ? scene.StageAt(_selectedLine - 1) : scene.Stage;
+    }
+
+    private bool OnStageBefore(string characterId) => StageBefore().Any(a => a.Character == characterId);
+
+    /// <summary>
+    /// Chỗ đứng chưa ai chiếm, ưu tiên giữa rồi tản ra hai bên — để thêm nhân
+    /// vật thứ hai không bị đè đúng lên người thứ nhất ở giữa sân khấu.
+    /// </summary>
+    private static StageAnchor FreeAnchor(IEnumerable<StageActor> occupied)
+    {
+        var taken = occupied.Select(a => a.Anchor).ToHashSet();
+        var order = new[] { StageAnchor.Center, StageAnchor.Left, StageAnchor.Right, StageAnchor.FarLeft, StageAnchor.FarRight };
+        return order.FirstOrDefault(a => !taken.Contains(a), StageAnchor.Center);
+    }
+
+    private string DefaultExpressionOf(string characterId)
+    {
+        if (!_loaded.Characters.TryGetValue(characterId, out var c)) return string.Empty;
+        if (c.FindExpression(c.DefaultExpression) is not null) return c.DefaultExpression;
+        return c.Expressions.FirstOrDefault()?.Id ?? string.Empty;
+    }
+
+    private string CharacterName(string id)
+        => _loaded.Characters.TryGetValue(id, out var c) ? c.DisplayName[_loaded.Project.PrimaryLocale] ?? id : id;
 
     private void RefreshLineListLabelOnly()
     {

@@ -308,6 +308,56 @@ public class StageAtTests
         Check.Equal("normal", scene.Stage[0].Expression);
         Check.Null(scene.Stage[0].Dim);
     }
+
+    [Test]
+    public void Nhan_vat_roi_san_khau_tu_dong_co_exit()
+    {
+        var scene = new SceneData
+        {
+            Id = "s",
+            Stage =
+            {
+                new StageActor { Character = "yuki", Expression = "normal", Anchor = StageAnchor.Left },
+                new StageActor { Character = "mei", Expression = "normal", Anchor = StageAnchor.Right },
+            },
+            Lines =
+            {
+                new DialogueLine { Id = "l1", Text = new Localized("vi", "A") },
+                new DialogueLine
+                {
+                    Id = "l2", Text = new Localized("vi", "B"),
+                    StageChanges = new() { new StageActor { Character = "mei", Exit = new Motion() } },
+                },
+                new DialogueLine { Id = "l3", Text = new Localized("vi", "C") },
+            },
+        };
+
+        Check.Equal(2, scene.StageAt(0).Count);
+        Check.Equal("yuki", scene.StageAt(1).Single().Character);
+        Check.Equal("yuki", scene.StageAt(2).Single().Character);
+    }
+
+    [Test]
+    public void Doi_vi_tri_khong_kem_bieu_cam_thi_giu_bieu_cam_cu()
+    {
+        var scene = new SceneData
+        {
+            Id = "s",
+            Stage = { new StageActor { Character = "yuki", Expression = "happy", Anchor = StageAnchor.Left } },
+            Lines =
+            {
+                new DialogueLine
+                {
+                    Id = "l1", Text = new Localized("vi", "A"),
+                    StageChanges = new() { new StageActor { Character = "yuki", Anchor = StageAnchor.Right } },
+                },
+            },
+        };
+
+        var yuki = scene.StageAt(0).Single();
+        Check.Equal("happy", yuki.Expression);
+        Check.Equal(StageAnchor.Right, yuki.Anchor);
+    }
 }
 
 public class IdsTests

@@ -300,7 +300,8 @@ public sealed partial class ProjectTools
 
         if (a["delete"]?.GetValue<bool>() == true)
         {
-            var uses = L.Scenes.Values.Count(s => s.Lines.Any(l => l.Speaker == id) || s.Stage.Any(x => x.Character == id));
+            var uses = L.Scenes.Values.Count(s => s.Stage.Any(x => x.Character == id)
+                || s.Lines.Any(l => l.Speaker == id || (l.StageChanges?.Any(x => x.Character == id) ?? false)));
             return Propose(new Proposal
             {
                 Title = $"Xoá nhân vật {displayName}",

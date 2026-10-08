@@ -161,7 +161,7 @@ bắt được lỗi thật nhiều lần.
 
 ## Trạng thái hiện tại
 
-**Đã xong và đã kiểm chứng (35/35 test pass):**
+**Đã xong và đã kiểm chứng (37/37 test pass):**
 
 - Data model đầy đủ: dự án, chương, 7 loại node, cảnh, lời thoại, nhân vật,
   biểu cảm, biến, điều kiện lồng nhau
@@ -175,7 +175,7 @@ bắt được lỗi thật nhiều lần.
 
 **Godot — Chặng 1 đến 6, đạt mốc 80%** (`app/`, xem `docs/LO-TRINH.md`): màn
 hình chào, Story Graph editor (`GraphEdit`), quản lý nhân vật + biến, thư
-viện asset đọc thật từ đĩa, trình soạn cảnh có preview `StageAt()` (giao diện đặt nhân vật & nhạc nền đã làm bằng Gemini, sau này cần kiểm tra lại), và bộ
+viện asset đọc thật từ đĩa, trình soạn cảnh có preview `StageAt()` (có giao diện đặt nhân vật lên sân khấu đầu cảnh, thay đổi/rời sân khấu theo từng dòng, chọn nhạc nền), và bộ
 thông dịch chạy được cả câu chuyện (bấm ▶ Chơi thử) — có ảnh thật, nhạc thật
 (ogg/mp3), biến đổi theo lựa chọn, tới đúng màn Kết thúc. Đã kiểm chứng bằng
 kịch bản `--headless` đi hết một lượt: tạo nhân vật → quét asset → soạn cảnh

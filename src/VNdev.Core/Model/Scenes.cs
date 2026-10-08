@@ -64,6 +64,16 @@ public sealed class StageActor
     public float? Dim { get; set; }
 
     public Motion? Enter { get; set; }
+
+    /// <summary>
+    /// Có giá trị nghĩa là nhân vật <b>rời sân khấu</b> tại dòng thoại chứa thay
+    /// đổi này, theo hiệu ứng đó.
+    /// </summary>
+    /// <remarks>
+    /// Dùng lại trường sẵn có thay vì thêm cờ <c>leave</c> riêng: cờ bool không
+    /// null sẽ bị ghi <c>"leave": false</c> vào mọi diễn viên của mọi dự án cũ,
+    /// lần lưu đầu tiên Git báo cả loạt file thay đổi dù người dùng không sửa gì.
+    /// </remarks>
     public Motion? Exit { get; set; }
 
     public StageActor Clone() => (StageActor)MemberwiseClone();
@@ -166,10 +176,18 @@ public sealed class SceneData
 
             foreach (var change in line.StageChanges ?? new List<StageActor>())
             {
+                if (change.Exit is not null)
+                {
+                    actors.Remove(change.Character);
+                    continue;
+                }
+
                 if (actors.TryGetValue(change.Character, out var existing))
                 {
                     var merged = existing.Clone();
-                    merged.Expression = change.Expression;
+                    // Biểu cảm rỗng nghĩa là "giữ nguyên" — để một thay đổi chỉ dời
+                    // vị trí không vô tình xoá mất biểu cảm đang có.
+                    if (!string.IsNullOrEmpty(change.Expression)) merged.Expression = change.Expression;
                     if (change.Anchor is not null) merged.Anchor = change.Anchor;
                     if (change.X is not null) merged.X = change.X;
                     if (change.Y is not null) merged.Y = change.Y;
