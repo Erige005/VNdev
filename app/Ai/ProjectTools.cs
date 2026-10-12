@@ -351,7 +351,10 @@ public sealed partial class ProjectTools
         {
             id = s.Id,
             background = s.Background,
-            onStageAtStart = s.Stage.Select(a => $"{a.Character} ({a.Expression}, {a.Anchor})"),
+            bgm = s.Bgm?.Src,
+            transition = s.BackgroundTransition is { } t ? TransitionText(t) : null,
+            particles = s.Particles is { } p ? ParticleText(p) : null,
+            onStageAtStart = s.Stage.Select(a => $"{a.Character} ({a.Expression}, {a.Anchor}{(a.Enter is { } e ? $", vào: {e.Type}" : "")})"),
             usedIn = SceneUsage().GetValueOrDefault(s.Id),
             lines = s.Lines.Select((l, i) => new
             {
@@ -360,6 +363,7 @@ public sealed partial class ProjectTools
                 expression = l.Expression,
                 text = l.Text[Locale],
                 stageChanges = l.StageChanges is { Count: > 0 } ch ? ChangeText(ch) : null,
+                screenEffect = l.ScreenEffect is { } fx ? EffectText(fx) : null,
             }),
         }), $"📖 Đọc cảnh \"{s.Id}\" ({s.Lines.Count} dòng)");
     }

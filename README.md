@@ -36,13 +36,17 @@ bằng GPU, không có HTML hay webview ở bất kỳ đâu.
 - Quản lý nhân vật, biểu cảm và biến (số, đúng/sai, chữ)
 - Thư viện asset đọc thẳng từ thư mục `assets/` của dự án
 - Trình soạn cảnh có xem trước sân khấu tại từng dòng thoại
+- Hiệu ứng: chuyển cảnh (mờ qua đen, hoà tan, quét, vỡ điểm ảnh, nhoè),
+  nhân vật trượt / nảy / mờ dần khi vào ra, rung, loé sáng, phủ màu, nhoè
+  nền, zoom chậm, và mưa / tuyết / hoa anh đào / bụi / bong bóng. Chọn trong
+  trình soạn cảnh là thấy ngay chuyển động y như lúc chơi
 - Chơi thử trong app, có ảnh, nhạc, biến và rẽ nhánh theo lựa chọn
 - Trợ lý AI bên cạnh: đọc hiểu cả dự án, cùng lên ý tưởng, trau chuốt lời
   thoại, gợi ý rẽ nhánh. Dùng API key của chính bạn (Claude, ChatGPT, Gemini,
   DeepSeek, OpenRouter, Grok hoặc Ollama chạy trên máy); AI chỉ đề xuất, bạn
   duyệt rồi mới ghi
 
-**Chưa có:** hiệu ứng chuyển cảnh và particle, save/load trong game, Gallery
+**Chưa có:** save/load trong game, Gallery
 và Ending List, xuất game ra `.exe`/web, đa ngôn ngữ đầy đủ.
 
 Chi tiết từng chặng: [`docs/LO-TRINH.md`](docs/LO-TRINH.md).

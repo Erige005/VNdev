@@ -25,10 +25,16 @@ public partial class SceneScreen : Control
 
     private ItemList _sceneList = null!;
     private ItemList _lineList = null!;
-    private Control _stage = null!;
+    private StageView _view = null!;
+    private SceneData? _viewScene;
     private VBoxContainer _lineInspector = null!;
     private OptionButton _bgPicker = null!;
     private OptionButton _bgmPicker = null!;
+    private OptionButton _transitionPicker = null!;
+    private SpinBox _transitionDuration = null!;
+    private OptionButton _particlePicker = null!;
+    private SpinBox _particleDensity = null!;
+    private bool _syncingToolbar;
 
     private string? _currentSceneId;
     private int _selectedLine = -1;
@@ -55,6 +61,7 @@ public partial class SceneScreen : Control
         root.AddChild(centerPanel);
 
         center.AddChild(BuildSceneToolbar());
+        center.AddChild(BuildEffectsToolbar());
         center.AddChild(BuildStage());
         center.AddChild(BuildLineList());
 
@@ -142,6 +149,7 @@ public partial class SceneScreen : Control
         _currentSceneId = id;
         _selectedLine = -1;
         RefreshBackgroundPicker();
+        RefreshEffectsToolbar();
         RefreshLineList();
         RedrawStage();
         RefreshSceneList();
@@ -166,7 +174,7 @@ public partial class SceneScreen : Control
             var backgrounds = AssetIndex.Backgrounds(_fs);
             scene.Background = idx == 0 ? null : backgrounds[(int)idx - 1];
             SaveCurrentScene();
-            RedrawStage();
+            _view.Refresh();
         };
         bar.AddChild(_bgPicker);
 
@@ -227,25 +235,160 @@ public partial class SceneScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
 
-        _stage = new Control { CustomMinimumSize = new Vector2(FrameWidth, FrameHeight) };
-        var stageBg = new ColorRect { Color = new Color(0.04f, 0.05f, 0.07f) };
-        stageBg.SetAnchorsPreset(LayoutPreset.FullRect);
-        _stage.AddChild(stageBg);
-
-        aspect.AddChild(_stage);
+        _view = new StageView(_loaded, _projectDir) { CustomMinimumSize = new Vector2(FrameWidth, FrameHeight) };
+        aspect.AddChild(_view);
         return aspect;
     }
 
-    private void RedrawStage()
+    /// <summary>Vẽ lại sân khấu theo dòng đang chọn.</summary>
+    /// <param name="animate">
+    /// Diễn chuyển động từ dòng trước sang dòng này — bật khi người dùng chọn
+    /// dòng hoặc đổi hiệu ứng để thấy ngay nó trông ra sao; tắt khi sửa thứ
+    /// khác, không thì đổi một ô biểu cảm là nhân vật lại trượt vào từ đầu.
+    /// </param>
+    private void RedrawStage(bool animate = false)
     {
-        if (_currentSceneId is null || !_loaded.Scenes.TryGetValue(_currentSceneId, out var scene))
+        var scene = CurrentScene();
+        if (scene != _viewScene)
         {
-            StageRenderer.Draw(_stage, _loaded, _projectDir, null, System.Array.Empty<StageActor>(), keepFirst: 1);
+            _viewScene = scene;
+            _view.ShowScene(scene, _selectedLine);
             return;
         }
+        _view.ShowLine(_selectedLine, animate, resetBackground: true);
+    }
 
-        var actors = _selectedLine >= 0 ? scene.StageAt(_selectedLine) : scene.Stage;
-        StageRenderer.Draw(_stage, _loaded, _projectDir, scene, actors, keepFirst: 1);
+    // ---------- hiệu ứng của cả cảnh ----------
+
+    private static readonly (TransitionType? Type, string Label)[] TransitionChoices =
+    {
+        (null, "Cắt thẳng"),
+        (TransitionType.Fade, "Mờ qua đen"),
+        (TransitionType.Dissolve, "Hoà tan"),
+        (TransitionType.WipeLeft, "Quét sang trái"),
+        (TransitionType.WipeRight, "Quét sang phải"),
+        (TransitionType.WipeUp, "Quét lên"),
+        (TransitionType.WipeDown, "Quét xuống"),
+        (TransitionType.Pixelate, "Vỡ điểm ảnh"),
+        (TransitionType.Blur, "Nhoè dần"),
+    };
+
+    private static readonly (ParticlePreset? Preset, string Label)[] ParticleChoices =
+    {
+        (null, "Không"),
+        (ParticlePreset.Rain, "Mưa"),
+        (ParticlePreset.Snow, "Tuyết"),
+        (ParticlePreset.Petals, "Hoa anh đào"),
+        (ParticlePreset.Dust, "Bụi lấp lánh"),
+        (ParticlePreset.Bubbles, "Bong bóng"),
+    };
+
+    private Control BuildEffectsToolbar()
+    {
+        var bar = new HBoxContainer { CustomMinimumSize = new Vector2(0, 34) };
+        bar.AddThemeConstantOverride("separation", 8);
+
+        bar.AddChild(DimLabel("Chuyển cảnh:"));
+        _transitionPicker = new OptionButton { TooltipText = "Hiệu ứng khi người chơi đi vào cảnh này" };
+        foreach (var (_, label) in TransitionChoices) _transitionPicker.AddItem(label);
+        _transitionPicker.ItemSelected += idx =>
+        {
+            if (_syncingToolbar || CurrentScene() is not { } scene) return;
+            var type = TransitionChoices[idx].Type;
+            scene.BackgroundTransition = type is null ? null : new Transition { Type = type.Value, Duration = scene.BackgroundTransition?.Duration ?? DefaultDuration(type.Value) };
+            SaveCurrentScene();
+            RefreshEffectsToolbar();
+            PreviewTransition();
+        };
+        bar.AddChild(_transitionPicker);
+
+        _transitionDuration = new SpinBox { MinValue = 0.1, MaxValue = 5, Step = 0.1, Suffix = "giây", TooltipText = "Thời gian chuyển cảnh" };
+        _transitionDuration.ValueChanged += v =>
+        {
+            if (_syncingToolbar || CurrentScene()?.BackgroundTransition is not { } tr) return;
+            tr.Duration = MathF.Round((float)v, 2);
+            SaveCurrentScene();
+        };
+        bar.AddChild(_transitionDuration);
+
+        var preview = new Button { Text = "▶ Xem", TooltipText = "Diễn thử chuyển cảnh từ màn đen vào cảnh này" };
+        preview.Pressed += PreviewTransition;
+        bar.AddChild(preview);
+
+        bar.AddChild(new Control { CustomMinimumSize = new Vector2(12, 0) });
+        bar.AddChild(DimLabel("Hiệu ứng:"));
+        _particlePicker = new OptionButton { TooltipText = "Hạt bay suốt cảnh: mưa, tuyết, hoa…" };
+        foreach (var (_, label) in ParticleChoices) _particlePicker.AddItem(label);
+        _particlePicker.ItemSelected += idx =>
+        {
+            if (_syncingToolbar || CurrentScene() is not { } scene) return;
+            var preset = ParticleChoices[idx].Preset;
+            scene.Particles = preset is null ? null : new ParticleEffect { Preset = preset.Value, Density = scene.Particles?.Density };
+            SaveCurrentScene();
+            RefreshEffectsToolbar();
+            _view.Refresh();
+        };
+        bar.AddChild(_particlePicker);
+        bar.AddChild(DimLabel("Mật độ"));
+
+        _particleDensity = new SpinBox { MinValue = 0.2, MaxValue = 3, Step = 0.1, Prefix = "×", TooltipText = "Mật độ: 1 là mặc định; 2 là dày gấp đôi" };
+        _particleDensity.ValueChanged += v =>
+        {
+            if (_syncingToolbar || CurrentScene()?.Particles is not { } fx) return;
+            var d = MathF.Round((float)v, 2);
+            // Mật độ 1 là mặc định — không ghi ra file cho JSON gọn.
+            fx.Density = Math.Abs(d - 1f) < 0.001f ? null : d;
+            SaveCurrentScene();
+            _view.Refresh();
+        };
+        bar.AddChild(_particleDensity);
+
+        return bar;
+    }
+
+    private static float DefaultDuration(TransitionType type) => type switch
+    {
+        TransitionType.Fade => 1f,
+        TransitionType.Pixelate or TransitionType.Blur => 0.8f,
+        _ => 0.6f,
+    };
+
+    private void RefreshEffectsToolbar()
+    {
+        _syncingToolbar = true;
+        var scene = CurrentScene();
+        var tr = scene?.BackgroundTransition is { Type: not TransitionType.Cut } t ? t : null;
+        _transitionPicker.Selected = Math.Max(0, Array.FindIndex(TransitionChoices, c => c.Type == tr?.Type));
+        _transitionDuration.Value = tr?.Duration ?? 0.6;
+        _transitionDuration.Editable = tr is not null;
+
+        var fx = scene?.Particles;
+        _particlePicker.Selected = Math.Max(0, Array.FindIndex(ParticleChoices, c => c.Preset == fx?.Preset));
+        _particleDensity.Value = fx?.Density ?? 1;
+        _particleDensity.Editable = fx is not null;
+        _syncingToolbar = false;
+    }
+
+    /// <summary>
+    /// Diễn thử chuyển cảnh từ màn đen. Cảnh cắt thẳng thì vẫn mờ qua đen nhẹ
+    /// để bấm Xem không ra cảm giác nút hỏng.
+    /// </summary>
+    private void PreviewTransition()
+    {
+        if (CurrentScene() is not { } scene) return;
+        _viewScene = scene;
+        var line = _selectedLine >= 0 && _selectedLine < scene.Lines.Count ? _selectedLine : -1;
+        _view.ShowScene(scene, line, scene.BackgroundTransition ?? new Transition { Type = TransitionType.Fade, Duration = 0.5f }, fromBlack: true);
+    }
+
+    private SceneData? CurrentScene()
+        => _currentSceneId is not null && _loaded.Scenes.TryGetValue(_currentSceneId, out var s) ? s : null;
+
+    private static Label DimLabel(string text)
+    {
+        var l = new Label { Text = text };
+        l.AddThemeColorOverride("font_color", Palette.Text3);
+        return l;
     }
 
     // ---------- danh sách lời thoại ----------
@@ -289,7 +432,7 @@ public partial class SceneScreen : Control
         _lineList.ItemSelected += idx =>
         {
             _selectedLine = (int)idx;
-            RedrawStage();
+            RedrawStage(animate: true);
             RefreshLineInspector();
         };
         box.AddChild(_lineList);
@@ -425,6 +568,8 @@ public partial class SceneScreen : Control
         };
         AddLabeled(_lineInspector, "Nội dung", textEdit);
 
+        BuildScreenEffectEditor(line);
+
         var spacer = new Control { CustomMinimumSize = new Vector2(0, 16) };
         _lineInspector.AddChild(spacer);
         var stageTitle = new Label { Text = "THAY ĐỔI SÂN KHẤU" };
@@ -435,6 +580,123 @@ public partial class SceneScreen : Control
         // vào mọi dòng chỉ vì bấm chọn dòng đó sẽ làm Git báo thay đổi vô cớ.
         var changes = line.StageChanges ?? new List<StageActor>();
         BuildActorListEditor(changes, isChange: true, onChanged: () => line.StageChanges = changes.Count == 0 ? null : changes);
+    }
+
+    private static readonly (ScreenEffectType? Type, string Label)[] ScreenEffectChoices =
+    {
+        (null, "Không"),
+        (ScreenEffectType.Shake, "Rung màn hình"),
+        (ScreenEffectType.Flash, "Loé sáng"),
+        (ScreenEffectType.Tint, "Phủ màu"),
+        (ScreenEffectType.BlurBackground, "Nhoè nền"),
+        (ScreenEffectType.KenBurns, "Zoom chậm vào nền"),
+    };
+
+    /// <summary>Hiệu ứng màn hình của một dòng: rung khi va chạm, loé khi sét đánh, phủ màu khi hồi tưởng…</summary>
+    private void BuildScreenEffectEditor(DialogueLine line)
+    {
+        var fx = line.ScreenEffect;
+        var typeBtn = new OptionButton();
+        foreach (var (_, label) in ScreenEffectChoices) typeBtn.AddItem(label);
+        typeBtn.Selected = Math.Max(0, Array.FindIndex(ScreenEffectChoices, c => c.Type == fx?.Type));
+        typeBtn.ItemSelected += idx =>
+        {
+            var type = ScreenEffectChoices[idx].Type;
+            line.ScreenEffect = type is null ? null : new ScreenEffect { Type = type.Value, Intensity = fx?.Intensity, Color = fx?.Color };
+            SaveCurrentScene();
+            RefreshLineInspector();
+            RedrawStage(animate: true);
+        };
+        AddLabeled(_lineInspector, "Hiệu ứng màn hình", typeBtn);
+        if (fx is null) return;
+
+        var row = new HBoxContainer();
+        row.AddChild(DimLabel("Cường độ"));
+        var slider = new HSlider { MinValue = 0.1, MaxValue = 1, Step = 0.05, Value = fx.Intensity ?? 0.5, SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        // Ghi khi thả chuột chứ không theo từng nấc kéo: mỗi lần ghi là một bước
+        // hoàn tác, kéo một đường ra hai chục bước thì Ctrl+Z vô dụng.
+        slider.DragEnded += changed =>
+        {
+            if (!changed) return;
+            fx.Intensity = MathF.Round((float)slider.Value, 2);
+            SaveCurrentScene();
+            RedrawStage(animate: true);
+        };
+        row.AddChild(slider);
+        _lineInspector.AddChild(row);
+
+        if (fx.Type is ScreenEffectType.Flash or ScreenEffectType.Tint)
+        {
+            var colorRow = new HBoxContainer();
+            colorRow.AddChild(DimLabel("Màu"));
+            var fallback = fx.Type == ScreenEffectType.Flash ? Colors.White : new Color(1f, 0.62f, 0.3f);
+            var picker = new ColorPickerButton
+            {
+                Color = !string.IsNullOrEmpty(fx.Color) && Color.HtmlIsValid(fx.Color) ? Color.FromHtml(fx.Color) : fallback,
+                EditAlpha = false,
+                CustomMinimumSize = new Vector2(48, 0),
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            };
+            picker.PopupClosed += () =>
+            {
+                fx.Color = "#" + picker.Color.ToHtml(false);
+                SaveCurrentScene();
+                RedrawStage(animate: true);
+            };
+            colorRow.AddChild(picker);
+            _lineInspector.AddChild(colorRow);
+        }
+    }
+
+    private static readonly (MotionType? Type, string Label)[] EnterChoices =
+    {
+        (null, "Hiện ngay"),
+        (MotionType.Fade, "Hiện dần"),
+        (MotionType.SlideLeft, "Trượt từ phải vào"),
+        (MotionType.SlideRight, "Trượt từ trái vào"),
+        (MotionType.SlideUp, "Trồi lên"),
+        (MotionType.SlideDown, "Rơi xuống"),
+        (MotionType.Bounce, "Nảy ra"),
+    };
+
+    private static readonly (MotionType Type, string Label)[] ExitChoices =
+    {
+        (MotionType.None, "Biến mất ngay"),
+        (MotionType.Fade, "Mờ dần"),
+        (MotionType.SlideLeft, "Trượt ra bên trái"),
+        (MotionType.SlideRight, "Trượt ra bên phải"),
+        (MotionType.SlideUp, "Bay lên"),
+        (MotionType.SlideDown, "Chìm xuống"),
+        (MotionType.Bounce, "Nhún rồi biến mất"),
+    };
+
+    private OptionButton MotionPicker(StageActor actor, bool exit, Action commit)
+    {
+        var btn = new OptionButton { TooltipText = exit ? "Cách nhân vật rời sân khấu" : "Cách nhân vật bước ra" };
+        if (exit)
+        {
+            foreach (var (_, label) in ExitChoices) btn.AddItem(label);
+            btn.Selected = Math.Max(0, Array.FindIndex(ExitChoices, c => c.Type == actor.Exit?.Type));
+            btn.ItemSelected += idx =>
+            {
+                actor.Exit = new Motion { Type = ExitChoices[idx].Type };
+                commit();
+                RedrawStage(animate: true);
+            };
+        }
+        else
+        {
+            foreach (var (_, label) in EnterChoices) btn.AddItem(label);
+            btn.Selected = Math.Max(0, Array.FindIndex(EnterChoices, c => c.Type == actor.Enter?.Type));
+            btn.ItemSelected += idx =>
+            {
+                var type = EnterChoices[idx].Type;
+                actor.Enter = type is null ? null : new Motion { Type = type.Value };
+                commit();
+                RedrawStage(animate: true);
+            };
+        }
+        return btn;
     }
 
     private static readonly (StageAnchor Anchor, string Label)[] AnchorChoices =
@@ -533,6 +795,7 @@ public partial class SceneScreen : Control
                 box.AddChild(leave);
                 if (actor.Exit is not null)
                 {
+                    box.AddChild(MotionPicker(actor, exit: true, Commit));
                     _lineInspector.AddChild(panel);
                     continue;
                 }
@@ -573,6 +836,10 @@ public partial class SceneScreen : Control
                 RedrawStage();
             };
             box.AddChild(anchorBtn);
+
+            // Hiệu ứng vào chỉ có nghĩa với người chưa đứng trên sân khấu; ở sân
+            // khấu đầu cảnh thì là cách họ xuất hiện khi cảnh vừa mở.
+            if (!isChange || !OnStageBefore(actor.Character)) box.AddChild(MotionPicker(actor, exit: false, Commit));
 
             _lineInspector.AddChild(panel);
         }

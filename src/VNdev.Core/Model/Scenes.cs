@@ -216,4 +216,48 @@ public sealed class SceneData
 
         return actors.Values.ToList();
     }
+
+    /// <summary>
+    /// Sân khấu thay đổi những gì khi chuyển sang dòng <paramref name="index"/>:
+    /// mỗi nhân vật có mặt trước hoặc sau dòng đó một mục, kèm hiệu ứng vào/ra.
+    /// </summary>
+    /// <remarks>
+    /// Tính ở lõi thay vì ở tầng vẽ để trình soạn cảnh và màn chơi thử diễn
+    /// cùng một chuyển động, và để kiểm được bằng test không cần mở engine.
+    /// Ở dòng đầu, nhân vật đứng sẵn có <see cref="StageActor.Enter"/> được coi
+    /// là chưa có mặt — họ bước ra khi cảnh vừa mở chứ không đứng chờ sẵn.
+    /// </remarks>
+    public List<StageStep> StepsAt(int index)
+    {
+        var before = index <= 0
+            ? Stage.Where(a => a.Enter is null).Select(a => a.Clone()).ToList()
+            : StageAt(index - 1);
+        var after = StageAt(index);
+        var changes = index >= 0 && index < Lines.Count ? Lines[index].StageChanges ?? new List<StageActor>() : new List<StageActor>();
+
+        var steps = new List<StageStep>();
+        foreach (var now in after)
+        {
+            var was = before.FirstOrDefault(b => b.Character == now.Character);
+            Motion? enter = null;
+            if (was is null)
+            {
+                enter = changes.FirstOrDefault(c => c.Character == now.Character)?.Enter
+                    ?? (index <= 0 ? Stage.FirstOrDefault(s => s.Character == now.Character)?.Enter : null);
+            }
+            steps.Add(new StageStep(now.Character, was, now, enter, null));
+        }
+        foreach (var was in before.Where(b => after.All(a => a.Character != b.Character)))
+        {
+            steps.Add(new StageStep(was.Character, was, null, null, changes.FirstOrDefault(c => c.Character == was.Character)?.Exit));
+        }
+        return steps;
+    }
 }
+
+/// <summary>
+/// Một nhân vật khi sang dòng mới. <see cref="Before"/> null là vừa bước ra,
+/// <see cref="After"/> null là vừa rời đi; có cả hai thì có thể đã dời chỗ,
+/// đổi biểu cảm hoặc sáng/tối theo người nói.
+/// </summary>
+public sealed record StageStep(string Character, StageActor? Before, StageActor? After, Motion? Enter, Motion? Exit);

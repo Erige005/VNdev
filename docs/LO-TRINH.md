@@ -20,7 +20,7 @@ hướng đi sai.
 | 5 | Thư viện asset đọc từ thư mục dự án | ✅ |
 | 6 | Biến, điều kiện, rẽ nhánh | ✅ |
 | 7 | Chơi thử ngay trong app, có ảnh và âm thanh thật | ✅ |
-| 8 | Hiệu ứng chuyển cảnh, particle, rung màn hình | ❌ 20% còn lại |
+| 8 | Hiệu ứng chuyển cảnh, particle, rung màn hình | ✅ |
 | 9 | Save/Load trong game, Gallery, Ending List | ❌ |
 | 10 | Xuất game ra .exe và web | ❌ |
 | 11 | Trợ lý AI | ✅ |
@@ -168,15 +168,41 @@ cho từng loại việc như bản thiết kế, hiện chi phí token.
 
 ---
 
+## Hiệu ứng và chuyển cảnh — đã xong
+
+`app/StageView.cs` là khung sân khấu có hiệu ứng, dùng chung cho trình soạn
+cảnh và màn Chơi thử — chọn một dòng trong editor là thấy đúng chuyển động
+người chơi sẽ thấy.
+
+- **Chuyển cảnh** (`SceneData.BackgroundTransition`): mờ qua đen, hoà tan
+  (có thể dùng ảnh mask), quét bốn hướng, vỡ điểm ảnh, nhoè dần. Cảnh cũ
+  được dời sang một lớp riêng chạy shader, không chụp màn hình — chụp sẽ dính
+  hộp thoại và không chạy được khi kiểm thử không cửa sổ. Hộp thoại chờ
+  chuyển cảnh xong mới hiện; bấm giữa chừng là tua cho xong.
+- **Nhân vật vào/ra** (`StageActor.Enter` / `Exit`): hiện dần, trượt bốn
+  hướng, nảy. Dời chỗ thì trượt mượt sang chỗ mới, người nói sáng lên dần.
+  Lõi tính "ai vào, ai ra, ai dời" bằng `SceneData.StepsAt()` (có test).
+- **Hiệu ứng màn hình theo dòng** (`DialogueLine.ScreenEffect`): rung, loé
+  sáng, phủ màu, nhoè nền, zoom chậm (zoom giữ suốt cảnh tới khi đổi nền).
+- **Hạt bay theo cảnh** (`SceneData.Particles`, `app/ParticlePresets.cs`):
+  mưa, tuyết, hoa anh đào, bụi, bong bóng. Hạt vẽ bằng code, không cần asset;
+  CPUParticles2D để chạy trên mọi máy.
+- Nhạc nền không phát lại từ đầu khi cảnh sau dùng cùng bài; có `fadeIn`.
+- Trợ lý AI đặt được tất cả các hiệu ứng trên qua `create_scene` /
+  `update_scene`.
+
+Kiểm chứng bằng kịch bản chạy có cửa sổ, chụp màn hình giữa lúc từng hiệu
+ứng đang diễn (cả 9 kiểu chuyển cảnh chính), và gọi thẳng công cụ AI.
+
+---
+
 ## Sau 80%
 
 Theo thứ tự đáng làm trước:
 
-1. **Hiệu ứng và chuyển cảnh** — đây là thứ làm nên lời hứa "đẹp hơn Ren'Py".
-   Godot cho sẵn shader và particle nên chặng này cho hiệu quả cao.
-2. **Xuất game** — biến dự án thành .exe chạy độc lập.
-3. **Save/Load, Gallery, Ending List** trong game.
-5. **Đa ngôn ngữ đầy đủ** — giao diện 5 thứ tiếng, ruby text cho furigana.
+1. **Xuất game** — biến dự án thành .exe chạy độc lập.
+2. **Save/Load, Gallery, Ending List** trong game.
+3. **Đa ngôn ngữ đầy đủ** — giao diện 5 thứ tiếng, ruby text cho furigana.
 
 ---
 

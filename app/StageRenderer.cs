@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Godot;
@@ -13,35 +14,68 @@ namespace VNdev.App;
 /// </summary>
 public static class StageRenderer
 {
-    /// <summary>Xoá mọi con của <paramref name="stage"/> từ vị trí <paramref name="keepFirst"/> trở đi rồi vẽ lại.</summary>
-    public static void Draw(Control stage, LoadedProject loaded, string projectDir, SceneData? scene, System.Collections.Generic.IReadOnlyList<StageActor> actors, int keepFirst = 0)
-    {
-        foreach (var child in stage.GetChildren().Skip(keepFirst)) child.QueueFree();
+    /// <summary>Tên node ảnh nền trong khung — để lớp hiệu ứng tìm lại nó (zoom chậm, nhoè).</summary>
+    public const string BackgroundName = "Bg";
 
-        if (scene is not null && !string.IsNullOrEmpty(scene.Background))
+    /// <summary>Những gì vừa vẽ, để lớp hiệu ứng diễn chuyển động trên đúng node.</summary>
+    public sealed record Drawn(TextureRect? Background, Dictionary<string, Control> Actors);
+
+    /// <summary>
+    /// Xoá mọi con của <paramref name="stage"/> từ vị trí <paramref name="keepFirst"/> trở đi rồi vẽ lại.
+    /// </summary>
+    /// <remarks>
+    /// Ảnh nền giữ lại nếu vẫn là file cũ: sang dòng mới mà dựng lại nền thì zoom
+    /// chậm đang chạy giật về đầu, và mỗi dòng lại đọc một ảnh vài MB từ đĩa.
+    /// </remarks>
+    public static Drawn Draw(Control stage, LoadedProject loaded, string projectDir, SceneData? scene, IReadOnlyList<StageActor> actors, int keepFirst = 0, float? frameHeight = null)
+    {
+        var wantBg = scene?.Background;
+        var oldBg = stage.GetNodeOrNull<TextureRect>(BackgroundName);
+        var keepBg = oldBg is not null && !oldBg.IsQueuedForDeletion() && !string.IsNullOrEmpty(wantBg)
+            && oldBg.HasMeta("src") && oldBg.GetMeta("src").AsString() == wantBg;
+
+        foreach (var child in stage.GetChildren().Skip(keepFirst))
         {
-            var texture = LoadTexture(Path.Combine(projectDir, scene.Background));
+            if (keepBg && child == oldBg) continue;
+            // Gỡ ngay chứ không chỉ QueueFree: node chờ xoá vẫn giữ tên "Bg" tới
+            // cuối khung hình, nền mới thêm vào sẽ bị Godot đổi tên và không tìm lại được.
+            stage.RemoveChild(child);
+            child.QueueFree();
+        }
+
+        TextureRect? bgRect = keepBg ? oldBg : null;
+        if (!keepBg && !string.IsNullOrEmpty(wantBg))
+        {
+            var texture = LoadTexture(Path.Combine(projectDir, wantBg));
             if (texture is not null)
             {
-                var bgRect = new TextureRect
+                bgRect = new TextureRect
                 {
+                    Name = BackgroundName,
                     Texture = texture,
                     ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                     StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
                     ClipContents = true,
+                    MouseFilter = Control.MouseFilterEnum.Ignore,
                 };
+                bgRect.SetMeta("src", wantBg);
                 bgRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
                 stage.AddChild(bgRect);
+                stage.MoveChild(bgRect, keepFirst);
             }
         }
 
+        var nodes = new Dictionary<string, Control>();
         foreach (var actor in actors)
         {
-            stage.AddChild(BuildActor(actor, loaded, projectDir, stage.Size.Y));
+            var node = BuildActor(actor, loaded, projectDir, frameHeight ?? stage.Size.Y);
+            stage.AddChild(node);
+            nodes[actor.Character] = node;
         }
+        return new Drawn(bgRect, nodes);
     }
 
-    private static Control BuildActor(StageActor actor, LoadedProject loaded, string projectDir, float frameHeight)
+    public static Control BuildActor(StageActor actor, LoadedProject loaded, string projectDir, float frameHeight)
     {
         var ratio = actor.X ?? (actor.Anchor is { } a ? StageAnchors.Ratio(a) : 0.5f);
         var dim = actor.Dim ?? 1f;
@@ -91,6 +125,7 @@ public static class StageRenderer
             };
         }
 
+        node.MouseFilter = Control.MouseFilterEnum.Ignore;
         node.Modulate = new Color(dim, dim, dim, 1);
         node.AnchorLeft = node.AnchorRight = ratio;
         node.AnchorTop = 1f;
@@ -105,8 +140,11 @@ public static class StageRenderer
     public static ImageTexture? LoadTexture(string absPath)
     {
         var image = new Image();
-        var err = image.Load(absPath);
-        return err == Error.Ok ? ImageTexture.CreateFromImage(image) : null;
+        if (image.Load(absPath) != Error.Ok) return null;
+        // Mipmap để thu nhỏ ảnh gốc to không răng cưa, và để hiệu ứng nhoè có
+        // mức mờ sẵn mà lấy mẫu.
+        if (!image.IsCompressed()) image.GenerateMipmaps();
+        return ImageTexture.CreateFromImage(image);
     }
 
     /// <summary>

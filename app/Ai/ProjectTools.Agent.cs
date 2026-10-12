@@ -41,6 +41,7 @@ public sealed partial class ProjectTools
         // Sao ra bản mới mỗi lần: cùng một mẫu (biểu cảm, hiệu ứng biến…) dùng ở
         // nhiều công cụ, mà một JsonNode chỉ được có một cha.
         static JsonObject Arr(JsonObject items, string d) => new() { ["type"] = "array", ["items"] = items.DeepClone(), ["description"] = d };
+        static JsonObject Enum(string d, string[] values) => new() { ["type"] = "string", ["enum"] = new JsonArray(values.Select(v => (JsonNode)v).ToArray()), ["description"] = d };
 
         var expression = Obj(new JsonObject
         {
@@ -59,13 +60,32 @@ public sealed partial class ProjectTools
             ["expression"] = Str("id biểu cảm mới; bỏ trống để giữ biểu cảm đang có"),
             ["anchor"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("farLeft", "left", "center", "right", "farRight"), ["description"] = "chỗ đứng mới; bỏ trống để giữ chỗ cũ (nhân vật mới bước ra thì đứng giữa)" },
             ["leave"] = Bool("true nếu nhân vật rời sân khấu tại dòng này"),
+            ["enter"] = Enum("cách bước ra nếu nhân vật chưa có mặt; bỏ trống là hiện ngay. slideLeft = trượt từ phải sang trái", MotionNames),
+            ["exit"] = Enum("cách rời đi khi leave = true; mặc định fade. none = biến mất ngay", MotionNames),
         }, "character");
         var actor = Obj(new JsonObject
         {
             ["character"] = Str("id nhân vật"),
             ["expression"] = Str("id biểu cảm"),
             ["anchor"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("farLeft", "left", "center", "right", "farRight") },
+            ["enter"] = Enum("cách xuất hiện khi cảnh vừa mở; bỏ trống là đứng sẵn", MotionNames),
         }, "character");
+        var transition = Obj(new JsonObject
+        {
+            ["type"] = Enum("hiệu ứng khi vào cảnh: fade = mờ qua đen, dissolve = hoà tan, wipe* = quét, cut = cắt thẳng (bỏ chuyển cảnh)", TransitionNames),
+            ["duration"] = Num("số giây, mặc định 0.6 (fade 1)"),
+        }, "type");
+        var particles = Obj(new JsonObject
+        {
+            ["preset"] = Enum("hạt bay suốt cảnh; none để bỏ", ParticleNames),
+            ["density"] = Num("mật độ, 1 là mặc định, 0.2–3"),
+        }, "preset");
+        var screenEffect = Obj(new JsonObject
+        {
+            ["type"] = Enum("shake = rung, flash = loé sáng, tint = phủ màu (hồi tưởng, hoàng hôn), blurBackground = nhoè nền, kenBurns = zoom chậm vào nền; none để bỏ", ScreenEffectNames),
+            ["intensity"] = Num("0.1–1, mặc định 0.5"),
+            ["color"] = Str("màu #rrggbb cho flash/tint"),
+        }, "type");
         var effect = Obj(new JsonObject
         {
             ["variable"] = Str("id biến đã khai báo"),
@@ -155,20 +175,25 @@ public sealed partial class ProjectTools
                     ["bgm"] = Str("nhạc nền, đường dẫn từ list_assets"),
                     ["stage"] = Arr(actor, "nhân vật có mặt từ đầu cảnh"),
                     ["lines"] = Arr(line, "lời thoại"),
+                    ["transition"] = transition.DeepClone(),
+                    ["particles"] = particles.DeepClone(),
                 })),
             new("update_scene",
-                "Đổi nền, nhạc nền, nhân vật đứng sẵn trên sân khấu, hoặc thay đổi sân khấu tại từng dòng thoại (ai bước ra, đổi biểu cảm, đổi chỗ, rời đi) của một cảnh có sẵn. Sửa lời thoại thì dùng propose_dialogue_edit.",
+                "Đổi nền, nhạc nền, chuyển cảnh, hạt bay (mưa, tuyết…), nhân vật đứng sẵn trên sân khấu, hoặc từng dòng thoại: thay đổi sân khấu (ai bước ra, đổi biểu cảm, đổi chỗ, rời đi, kèm hiệu ứng vào/ra) và hiệu ứng màn hình (rung, loé, phủ màu…). Sửa lời thoại thì dùng propose_dialogue_edit.",
                 Obj(new JsonObject
                 {
                     ["scene_id"] = Str("id cảnh"),
                     ["background"] = Str("ảnh nền mới; chuỗi rỗng để bỏ nền"),
                     ["bgm"] = Str("nhạc nền mới; chuỗi rỗng để tắt nhạc"),
                     ["stage"] = Arr(actor, "thay toàn bộ danh sách nhân vật đứng sẵn"),
+                    ["transition"] = transition.DeepClone(),
+                    ["particles"] = particles.DeepClone(),
                     ["line_stage"] = Arr(Obj(new JsonObject
                     {
                         ["index"] = new JsonObject { ["type"] = "integer", ["description"] = "số thứ tự dòng theo get_scene (từ 0)" },
-                        ["changes"] = Arr(stageChange, "thay toàn bộ thay đổi sân khấu của dòng này; mảng rỗng để bỏ hết"),
-                    }, "index", "changes"), "thay đổi sân khấu tại từng dòng thoại: nhân vật bước ra, đổi biểu cảm, đổi chỗ đứng hoặc rời sân khấu từ dòng đó trở đi"),
+                        ["changes"] = Arr(stageChange, "thay toàn bộ thay đổi sân khấu của dòng này; mảng rỗng để bỏ hết; bỏ trống để giữ nguyên"),
+                        ["screen_effect"] = screenEffect.DeepClone(),
+                    }, "index"), "từng dòng thoại: thay đổi sân khấu (nhân vật bước ra, đổi biểu cảm, đổi chỗ, rời đi từ dòng đó trở đi) và/hoặc hiệu ứng màn hình của dòng"),
                 }, "scene_id")),
             new("edit_graph",
                 "Dựng và sửa đồ thị cốt truyện của một chương trong một lần: thêm node, sửa node, xoá node, nối dây, đặt điểm bắt đầu. Node mới đặt 'ref' tạm để nối dây; trong links, from/to là ref hoặc id node có sẵn. Cổng ra (port): với node choice là ref hoặc id phương án; với node condition là \"true\"/\"false\"; node khác bỏ trống. to = null để gỡ dây.",
@@ -482,13 +507,64 @@ public sealed partial class ProjectTools
             var expr = NullIfEmpty(OptArg(o, "expression")) ?? ch.DefaultExpression;
             CheckSpeaker(who, expr);
             var anchor = ParseAnchor(OptArg(o, "anchor")) ?? StageAnchor.Center;
-            list.Add(new StageActor { Character = who, Expression = expr, Anchor = anchor });
+            list.Add(new StageActor { Character = who, Expression = expr, Anchor = anchor, Enter = ParseMotion(OptArg(o, "enter"), "enter") });
         }
         return list;
     }
 
     private string StageText(IEnumerable<StageActor> stage)
-        => string.Join(", ", stage.Select(s => $"{SpeakerName(s.Character)} ({s.Expression}, {s.Anchor})"));
+        => string.Join(", ", stage.Select(s => $"{SpeakerName(s.Character)} ({s.Expression}, {s.Anchor}{(s.Enter is { } e ? $", vào: {e.Type}" : "")})"));
+
+    // Tên camelCase đúng như trong file JSON, để AI đọc get_scene rồi gửi lại y nguyên được.
+    private static readonly string[] MotionNames = { "none", "fade", "slideLeft", "slideRight", "slideUp", "slideDown", "bounce" };
+    private static readonly string[] TransitionNames = { "cut", "fade", "dissolve", "wipeLeft", "wipeRight", "wipeUp", "wipeDown", "pixelate", "blur" };
+    private static readonly string[] ParticleNames = { "none", "rain", "snow", "petals", "dust", "bubbles" };
+    private static readonly string[] ScreenEffectNames = { "none", "shake", "flash", "tint", "blurBackground", "kenBurns" };
+
+    private static T ParseEnum<T>(string raw, string field, string[] allowed) where T : struct, Enum
+        => Enum.TryParse<T>(raw, ignoreCase: true, out var v) && Enum.IsDefined(v)
+            ? v
+            : throw new ToolInputException($"{field} = \"{raw}\" không hợp lệ — chọn một trong: {string.Join(", ", allowed)}.");
+
+    private static Motion? ParseMotion(string? raw, string field)
+        => string.IsNullOrEmpty(raw) ? null : new Motion { Type = ParseEnum<MotionType>(raw, field, MotionNames) };
+
+    /// <summary>Chuyển cảnh; trả về (có gửi không, giá trị) — gửi "cut" nghĩa là bỏ chuyển cảnh.</summary>
+    private static (bool Set, Transition? Value) ParseTransition(JsonObject a)
+    {
+        if (a["transition"] is not JsonObject t) return (false, null);
+        var type = ParseEnum<TransitionType>(Arg(t, "type"), "transition.type", TransitionNames);
+        if (type == TransitionType.Cut) return (true, null);
+        var duration = t["duration"]?.GetValue<double>() is { } d ? Math.Clamp((float)d, 0.1f, 5f) : (type == TransitionType.Fade ? 1f : 0.6f);
+        return (true, new Transition { Type = type, Duration = MathF.Round(duration, 2) });
+    }
+
+    private static (bool Set, ParticleEffect? Value) ParseParticles(JsonObject a)
+    {
+        if (a["particles"] is not JsonObject p) return (false, null);
+        var raw = Arg(p, "preset");
+        if (raw == "none") return (true, null);
+        var density = p["density"]?.GetValue<double>() is { } d ? MathF.Round(Math.Clamp((float)d, 0.2f, 3f), 2) : (float?)null;
+        return (true, new ParticleEffect { Preset = ParseEnum<ParticlePreset>(raw, "particles.preset", ParticleNames), Density = density is 1f ? null : density });
+    }
+
+    private static ScreenEffect? ParseScreenEffect(JsonObject fx)
+    {
+        var raw = Arg(fx, "type");
+        if (raw == "none") return null;
+        var color = NullIfEmpty(OptArg(fx, "color"));
+        if (color is not null && !Godot.Color.HtmlIsValid(color)) throw new ToolInputException($"Màu \"{color}\" không hợp lệ — dùng dạng #rrggbb.");
+        return new ScreenEffect
+        {
+            Type = ParseEnum<ScreenEffectType>(raw, "screen_effect.type", ScreenEffectNames),
+            Intensity = fx["intensity"]?.GetValue<double>() is { } i ? MathF.Round(Math.Clamp((float)i, 0.1f, 1f), 2) : null,
+            Color = color,
+        };
+    }
+
+    private static string TransitionText(Transition? t) => t is null ? "cắt thẳng" : $"{t.Type} {t.Duration}s";
+    private static string ParticleText(ParticleEffect? p) => p is null ? "không" : $"{p.Preset}{(p.Density is { } d ? $" ×{d}" : "")}";
+    private static string EffectText(ScreenEffect? e) => e is null ? "không" : $"{e.Type}{(e.Intensity is { } i ? $" {i}" : "")}{(e.Color is { } c ? $" {c}" : "")}";
 
     private static StageAnchor? ParseAnchor(string? raw) => raw switch
     {
@@ -504,9 +580,9 @@ public sealed partial class ProjectTools
     /// Đọc thay đổi sân khấu theo dòng; giữ id dòng thay vì số thứ tự để lúc áp
     /// dụng vẫn đúng dòng dù người dùng đã chèn/xoá dòng khác khi đọc thẻ.
     /// </summary>
-    private List<(string LineId, int Index, List<StageActor> Changes)> ParseLineStage(SceneData scene, JsonArray? arr)
+    private List<LineEdit> ParseLineStage(SceneData scene, JsonArray? arr)
     {
-        var result = new List<(string LineId, int Index, List<StageActor> Changes)>();
+        var result = new List<LineEdit>();
         foreach (var node in arr ?? new JsonArray())
         {
             if (node is not JsonObject o) continue;
@@ -515,31 +591,41 @@ public sealed partial class ProjectTools
                 throw new ToolInputException($"Dòng {index} không có trong cảnh (cảnh có {scene.Lines.Count} dòng, index 0–{scene.Lines.Count - 1}).");
             if (result.Any(r => r.Index == index)) throw new ToolInputException($"Dòng {index} xuất hiện hai lần trong line_stage — gộp lại thành một mục.");
 
-            var changes = new List<StageActor>();
-            foreach (var c in o["changes"] as JsonArray ?? new JsonArray())
+            List<StageActor>? changes = null;
+            if (o["changes"] is JsonArray changeArr)
             {
-                if (c is not JsonObject co) continue;
-                var who = Arg(co, "character");
-                FindCharacter(who);
-                if (changes.Any(x => x.Character == who)) throw new ToolInputException($"Nhân vật \"{who}\" có hai thay đổi ở dòng {index} — mỗi nhân vật một thay đổi mỗi dòng.");
-                if (co["leave"]?.GetValue<bool>() == true)
+                changes = new List<StageActor>();
+                foreach (var c in changeArr)
                 {
-                    changes.Add(new StageActor { Character = who, Exit = new Motion() });
-                    continue;
+                    if (c is not JsonObject co) continue;
+                    var who = Arg(co, "character");
+                    FindCharacter(who);
+                    if (changes.Any(x => x.Character == who)) throw new ToolInputException($"Nhân vật \"{who}\" có hai thay đổi ở dòng {index} — mỗi nhân vật một thay đổi mỗi dòng.");
+                    if (co["leave"]?.GetValue<bool>() == true)
+                    {
+                        changes.Add(new StageActor { Character = who, Exit = ParseMotion(OptArg(co, "exit"), "exit") ?? new Motion() });
+                        continue;
+                    }
+                    var expr = NullIfEmpty(OptArg(co, "expression"));
+                    if (expr is not null) CheckSpeaker(who, expr);
+                    changes.Add(new StageActor { Character = who, Expression = expr ?? string.Empty, Anchor = ParseAnchor(OptArg(co, "anchor")), Enter = ParseMotion(OptArg(co, "enter"), "enter") });
                 }
-                var expr = NullIfEmpty(OptArg(co, "expression"));
-                if (expr is not null) CheckSpeaker(who, expr);
-                changes.Add(new StageActor { Character = who, Expression = expr ?? string.Empty, Anchor = ParseAnchor(OptArg(co, "anchor")) });
             }
-            result.Add((scene.Lines[index].Id, index, changes));
+            var setEffect = o["screen_effect"] is JsonObject;
+            var effect = o["screen_effect"] is JsonObject fx ? ParseScreenEffect(fx) : null;
+            if (changes is null && !setEffect) throw new ToolInputException($"Mục line_stage của dòng {index} cần changes hoặc screen_effect.");
+            result.Add(new LineEdit(scene.Lines[index].Id, index, changes, setEffect, effect));
         }
         return result;
     }
 
+    /// <summary>Một dòng cần sửa: <see cref="Changes"/> null là giữ nguyên sân khấu, chỉ đổi hiệu ứng.</summary>
+    private sealed record LineEdit(string LineId, int Index, List<StageActor>? Changes, bool SetEffect, ScreenEffect? Effect);
+
     private string ChangeText(IEnumerable<StageActor> changes)
         => string.Join(", ", changes.Select(c => c.Exit is not null
-            ? $"{SpeakerName(c.Character)} rời đi"
-            : $"{SpeakerName(c.Character)} ({(c.Expression.Length > 0 ? c.Expression : "giữ biểu cảm")}, {c.Anchor?.ToString() ?? "giữ chỗ"})"));
+            ? $"{SpeakerName(c.Character)} rời đi ({c.Exit.Type})"
+            : $"{SpeakerName(c.Character)} ({(c.Expression.Length > 0 ? c.Expression : "giữ biểu cảm")}, {c.Anchor?.ToString() ?? "giữ chỗ"}{(c.Enter is { } e ? $", vào: {e.Type}" : "")})"));
 
     private ToolOutcome CreateScene(JsonObject a)
     {
@@ -549,6 +635,8 @@ public sealed partial class ProjectTools
         var bgm = NullIfEmpty(OptArg(a, "bgm"));
         CheckAsset(bgm, AssetIndex.Bgm(fs), "nhạc nền");
         var stage = ParseStage(a["stage"] as JsonArray);
+        var (_, transition) = ParseTransition(a);
+        var (_, particles) = ParseParticles(a);
         var lines = (a["lines"] as JsonArray ?? new JsonArray()).Select(l => (JsonObject)l!)
             .Select(l => (Speaker: CheckSpeaker(NullIfEmpty(OptArg(l, "speaker")), OptArg(l, "expression")), Expression: NullIfEmpty(OptArg(l, "expression")), Text: Arg(l, "text")))
             .ToList();
@@ -559,6 +647,8 @@ public sealed partial class ProjectTools
         var diff = new List<DiffLine> { new(DiffKind.Added, $"▣ Cảnh {wanted}") };
         if (background is not null) diff.Add(new(DiffKind.Added, $"   Nền: {background}"));
         if (bgm is not null) diff.Add(new(DiffKind.Added, $"   Nhạc: {bgm}"));
+        if (transition is not null) diff.Add(new(DiffKind.Added, $"   Chuyển cảnh: {TransitionText(transition)}"));
+        if (particles is not null) diff.Add(new(DiffKind.Added, $"   Hạt bay: {ParticleText(particles)}"));
         if (stage.Count > 0) diff.Add(new(DiffKind.Added, $"   Trên sân khấu: {StageText(stage)}"));
         foreach (var l in lines) diff.Add(new(DiffKind.Added, $"   {LineText(l.Speaker, l.Text)}"));
 
@@ -575,6 +665,8 @@ public sealed partial class ProjectTools
                     Id = id,
                     Background = background,
                     Bgm = bgm is null ? null : new AudioCue { Src = bgm, Volume = 0.6f, Loop = true },
+                    BackgroundTransition = transition,
+                    Particles = particles,
                     Stage = stage,
                 };
                 foreach (var l in lines) scene.Lines.Add(NewLine(scene, l.Speaker, l.Expression, l.Text));
@@ -600,18 +692,31 @@ public sealed partial class ProjectTools
         var setStage = a["stage"] is JsonArray;
         var stage = ParseStage(a["stage"] as JsonArray);
         var lineStage = ParseLineStage(s, a["line_stage"] as JsonArray);
-        if (!setBg && !setBgm && !setStage && lineStage.Count == 0) throw new ToolInputException("Gửi background, bgm, stage hoặc line_stage.");
+        var (setTransition, transition) = ParseTransition(a);
+        var (setParticles, particles) = ParseParticles(a);
+        if (!setBg && !setBgm && !setStage && !setTransition && !setParticles && lineStage.Count == 0)
+            throw new ToolInputException("Gửi background, bgm, transition, particles, stage hoặc line_stage.");
 
         var diff = new List<DiffLine>();
         if (setBg) { diff.Add(new(DiffKind.Removed, $"Nền: {s.Background ?? "(không)"}")); diff.Add(new(DiffKind.Added, $"Nền: {background ?? "(không)"}")); }
         if (setBgm) { diff.Add(new(DiffKind.Removed, $"Nhạc: {s.Bgm?.Src ?? "(không)"}")); diff.Add(new(DiffKind.Added, $"Nhạc: {bgm ?? "(không)"}")); }
         if (setStage) { diff.Add(new(DiffKind.Removed, $"Sân khấu: {StageText(s.Stage)}")); diff.Add(new(DiffKind.Added, $"Sân khấu: {StageText(stage)}")); }
-        foreach (var (_, index, changes) in lineStage)
+        if (setTransition) { diff.Add(new(DiffKind.Removed, $"Chuyển cảnh: {TransitionText(s.BackgroundTransition)}")); diff.Add(new(DiffKind.Added, $"Chuyển cảnh: {TransitionText(transition)}")); }
+        if (setParticles) { diff.Add(new(DiffKind.Removed, $"Hạt bay: {ParticleText(s.Particles)}")); diff.Add(new(DiffKind.Added, $"Hạt bay: {ParticleText(particles)}")); }
+        foreach (var edit in lineStage)
         {
-            var before = s.Lines[index];
-            diff.Add(new(DiffKind.Context, $"Dòng {index}: {LineText(before.Speaker, before.Text[Locale] ?? "")}"));
-            if (before.StageChanges is { Count: > 0 }) diff.Add(new(DiffKind.Removed, $"   Sân khấu: {ChangeText(before.StageChanges)}"));
-            diff.Add(new(DiffKind.Added, changes.Count == 0 ? "   Sân khấu: (không đổi gì)" : $"   Sân khấu: {ChangeText(changes)}"));
+            var before = s.Lines[edit.Index];
+            diff.Add(new(DiffKind.Context, $"Dòng {edit.Index}: {LineText(before.Speaker, before.Text[Locale] ?? "")}"));
+            if (edit.Changes is { } changes)
+            {
+                if (before.StageChanges is { Count: > 0 }) diff.Add(new(DiffKind.Removed, $"   Sân khấu: {ChangeText(before.StageChanges)}"));
+                diff.Add(new(DiffKind.Added, changes.Count == 0 ? "   Sân khấu: (không đổi gì)" : $"   Sân khấu: {ChangeText(changes)}"));
+            }
+            if (edit.SetEffect)
+            {
+                if (before.ScreenEffect is not null) diff.Add(new(DiffKind.Removed, $"   Hiệu ứng: {EffectText(before.ScreenEffect)}"));
+                diff.Add(new(DiffKind.Added, $"   Hiệu ứng: {EffectText(edit.Effect)}"));
+            }
         }
 
         return Propose(new Proposal
@@ -624,11 +729,14 @@ public sealed partial class ProjectTools
                 if (setBg) cur.Background = background;
                 if (setBgm) cur.Bgm = bgm is null ? null : new AudioCue { Src = bgm, Volume = cur.Bgm?.Volume ?? 0.6f, Loop = true };
                 if (setStage) cur.Stage = stage;
-                foreach (var (lineId, _, changes) in lineStage)
+                if (setTransition) cur.BackgroundTransition = transition;
+                if (setParticles) cur.Particles = particles;
+                foreach (var edit in lineStage)
                 {
-                    var target = cur.Lines.FirstOrDefault(l => l.Id == lineId);
-                    if (target is null) return "Một dòng thoại cần đổi sân khấu đã bị xoá.";
-                    target.StageChanges = changes.Count == 0 ? null : changes;
+                    var target = cur.Lines.FirstOrDefault(l => l.Id == edit.LineId);
+                    if (target is null) return "Một dòng thoại cần sửa đã bị xoá.";
+                    if (edit.Changes is { } changes) target.StageChanges = changes.Count == 0 ? null : changes;
+                    if (edit.SetEffect) target.ScreenEffect = edit.Effect;
                 }
                 ProjectIo.SaveScene(_session.Fs, cur);
                 return null;

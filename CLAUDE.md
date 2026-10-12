@@ -108,6 +108,9 @@ D:\VNdev\
 │   ├── AssetIndex.cs, AssetScreen.cs  quét assets/ (Chặng 4)
 │   ├── SceneScreen.cs         trình soạn cảnh, StageAt() preview (Chặng 5)
 │   ├── StageRenderer.cs       vẽ nền+nhân vật, dùng chung Scene Canvas/Player
+│   ├── StageView.cs           khung sân khấu có hiệu ứng (chuyển cảnh, vào/ra,
+│   │                          rung, loé…), dùng chung editor và Chơi thử
+│   ├── ParticlePresets.cs     mưa, tuyết, hoa anh đào, bụi, bong bóng
 │   ├── PlayerScreen.cs        bộ thông dịch chạy truyện (Chặng 6)
 │   ├── Palette.cs, AppTheme.cs  màu và theme dùng chung
 └── docs/
@@ -161,7 +164,7 @@ bắt được lỗi thật nhiều lần.
 
 ## Trạng thái hiện tại
 
-**Đã xong và đã kiểm chứng (37/37 test pass):**
+**Đã xong và đã kiểm chứng (41/41 test pass):**
 
 - Data model đầy đủ: dự án, chương, 7 loại node, cảnh, lời thoại, nhân vật,
   biểu cảm, biến, điều kiện lồng nhau
@@ -203,7 +206,11 @@ Manager**, không bao giờ vào `settings.json` hay thư mục dự án. Cuộc
 chuyện sống trong `ProjectSession.Ai`, không trong panel, để editor dựng lại
 (hoàn tác, áp dụng) không làm mất nó.
 
-**Chưa có (20% còn lại):** hiệu ứng chuyển cảnh/particle, save-load trong
+**Hiệu ứng (xong):** chuyển cảnh, nhân vật vào/ra, hiệu ứng màn hình theo
+dòng, particle — trong `StageView.cs`, xem "Hiệu ứng và chuyển cảnh" trong
+`docs/LO-TRINH.md`.
+
+**Chưa có:** save-load trong
 game, Gallery/Ending List, xuất game ra .exe/web, đa ngôn ngữ đầy
 đủ. Xem "Sau 80%" trong `docs/LO-TRINH.md`.
 

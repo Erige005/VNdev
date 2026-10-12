@@ -138,6 +138,15 @@ khấu** bấm **+ Thêm thay đổi**. Nhân vật chưa có mặt sẽ bước
 đổi), hoặc tích **Rời sân khấu tại dòng này**. Từ dòng đó trở đi khung hình
 hiện theo thay đổi mới.
 
+**Hiệu ứng.** Thanh thứ hai trên khung hình chọn **Chuyển cảnh** (cách người
+chơi đi vào cảnh này: mờ qua đen, hoà tan, quét bốn hướng, vỡ điểm ảnh, nhoè
+dần) kèm thời gian, bấm **▶ Xem** để diễn thử; và **Hiệu ứng** hạt bay suốt
+cảnh (mưa, tuyết, hoa anh đào, bụi lấp lánh, bong bóng) kèm mật độ. Mỗi dòng
+thoại có **Hiệu ứng màn hình** riêng: rung, loé sáng, phủ màu, nhoè nền, zoom
+chậm vào nền, chỉnh cường độ và màu. Nhân vật bước ra hoặc rời sân khấu có
+ô chọn cách vào/ra: hiện dần, trượt, trồi lên, rơi xuống, nảy. Chọn một dòng
+là khung hình diễn đúng chuyển động từ dòng trước sang — y như lúc chơi.
+
 ## 6. Chơi thử
 
 Nút **▶ Chơi thử** góc trên phải, hoặc **F5**. Bấm chuột, Space hoặc Enter để sang dòng.
@@ -246,7 +255,6 @@ nhà cung cấp đó.
 
 ## Chưa có
 
-- Hiệu ứng chuyển cảnh, animation nhân vật, particle
 - Save/Load trong game, Gallery, Ending List
 - Xuất game ra `.exe` và web
 - Đa ngôn ngữ đầy đủ

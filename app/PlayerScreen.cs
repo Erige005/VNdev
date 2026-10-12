@@ -32,7 +32,9 @@ public partial class PlayerScreen : Control
     private bool _typing;
     private float _typeProgress;
 
-    private Control _stage = null!;
+    private StageView _stage = null!;
+    private bool _firstScene = true;
+    private string? _bgmSrc;
     private Control _overlay = null!;
     private PanelContainer _textBox = null!;
     private Label _speakerLabel = null!;
@@ -100,17 +102,13 @@ public partial class PlayerScreen : Control
         };
         frameHolder.AddChild(aspect);
 
-        _stage = new Control { MouseFilter = MouseFilterEnum.Ignore, ClipContents = true };
-        var frameBg = new ColorRect { Color = new Color(0.04f, 0.05f, 0.07f), MouseFilter = MouseFilterEnum.Ignore };
-        frameBg.SetAnchorsPreset(LayoutPreset.FullRect);
-        _stage.AddChild(frameBg);
+        _stage = new StageView(_loaded, _projectDir);
         aspect.AddChild(_stage);
-        // Nhân vật được tính cỡ theo chiều cao sân khấu lúc vẽ — đổi cỡ cửa sổ
-        // thì vẽ lại, không thì nhân vật giữ cỡ cũ trong khung đã to ra.
         _stage.Resized += OnStageResized;
+        _stage.TransitionFinished += OnTransitionFinished;
 
-        // Lớp phủ tách riêng khỏi _stage: StageRenderer.Draw() xoá sạch con
-        // của _stage mỗi khi sang dòng mới để vẽ lại nền/nhân vật — hộp
+        // Lớp phủ tách riêng khỏi _stage: StageView vẽ lại nền/nhân vật mỗi
+        // khi sang dòng mới, xoá sạch con của nó — hộp
         // thoại, lựa chọn, màn kết thúc phải sống ở chỗ khác thì mới không bị
         // xoá theo. AspectRatioContainer canh cả hai lớp đúng cùng một khung
         // 16:9 nên chúng luôn khớp pixel với sân khấu bên dưới.
@@ -141,16 +139,18 @@ public partial class PlayerScreen : Control
             child.AddThemeFontSizeOverride("font_size", Mathf.RoundToInt(h * 0.03f));
         }
         _endingLabel.AddThemeFontSizeOverride("font_size", Mathf.RoundToInt(h * 0.05f));
+    }
 
-        if (_currentScene is not null && _lineIndex < _currentScene.Lines.Count && !_choiceBox.Visible && !_endingPanel.Visible)
-        {
-            StageRenderer.Draw(_stage, _loaded, _projectDir, _currentScene, _currentScene.StageAt(_lineIndex), keepFirst: 1);
-        }
+    /// <summary>Hộp thoại chờ chuyển cảnh xong mới hiện, như game thật.</summary>
+    private void OnTransitionFinished()
+    {
+        if (_currentScene is null || _choiceBox.Visible || _endingPanel.Visible) return;
+        if (_lineIndex < _currentScene.Lines.Count) _textBox.Visible = true;
     }
 
     public override void _Process(double delta)
     {
-        if (!_typing) return;
+        if (!_typing || _stage.TransitionRunning) return;
 
         var speed = _loaded.Project.Text.TypewriterSpeed;
         if (speed <= 0)
@@ -228,6 +228,14 @@ public partial class PlayerScreen : Control
     {
         if (_choiceBox.Visible || _endingPanel.Visible) return;
 
+        // Bấm giữa lúc chuyển cảnh là tua cho xong, chưa sang dòng — không thì
+        // người chơi bấm vội sẽ lỡ mất câu đầu của cảnh mới.
+        if (_stage.TransitionRunning)
+        {
+            _stage.SkipAnimations();
+            return;
+        }
+
         if (_typing)
         {
             _typing = false;
@@ -237,7 +245,7 @@ public partial class PlayerScreen : Control
         }
 
         _lineIndex++;
-        ShowLine();
+        ShowLine(drawStage: true);
     }
 
     // ---------- vòng lặp thông dịch ----------
@@ -297,25 +305,58 @@ public partial class PlayerScreen : Control
         _currentScene = scene;
         _lineIndex = 0;
 
-        if (!string.IsNullOrEmpty(scene.Bgm?.Src))
+        PlayBgm(scene.Bgm);
+
+        // Cảnh không có dòng nào thì đi tiếp luôn, không chuyển cảnh vào một
+        // khung người chơi chưa kịp thấy đã rời.
+        if (scene.Lines.Count == 0)
         {
-            var stream = StageRenderer.LoadAudio(Path.Combine(_projectDir, scene.Bgm.Src));
-            if (stream is not null)
-            {
-                _bgmPlayer.Stream = stream;
-                _bgmPlayer.VolumeDb = Mathf.LinearToDb(_loaded.Project.Audio.BgmVolume * (scene.Bgm.Volume ?? 1f));
-                _bgmPlayer.Play();
-            }
+            GoToNode(sceneNode.Next);
+            return;
+        }
+
+        _stage.ShowScene(scene, 0, scene.BackgroundTransition, fromBlack: _firstScene);
+        _firstScene = false;
+        ShowLine(drawStage: false);
+    }
+
+    /// <summary>
+    /// Đổi nhạc nền theo cảnh. Cảnh sau dùng cùng bài thì để nhạc chạy tiếp —
+    /// phát lại từ đầu mỗi lần sang cảnh nghe rất giật.
+    /// </summary>
+    private void PlayBgm(AudioCue? cue)
+    {
+        if (string.IsNullOrEmpty(cue?.Src))
+        {
+            _bgmPlayer.Stop();
+            _bgmSrc = null;
+            return;
+        }
+
+        var target = Mathf.LinearToDb(_loaded.Project.Audio.BgmVolume * (cue.Volume ?? 1f));
+        if (cue.Src == _bgmSrc && _bgmPlayer.Playing)
+        {
+            _bgmPlayer.VolumeDb = target;
+            return;
+        }
+
+        var stream = StageRenderer.LoadAudio(Path.Combine(_projectDir, cue.Src));
+        if (stream is null) return;
+        _bgmSrc = cue.Src;
+        _bgmPlayer.Stream = stream;
+        if (cue.FadeIn is > 0)
+        {
+            _bgmPlayer.VolumeDb = -40f;
+            CreateTween().TweenProperty(_bgmPlayer, "volume_db", target, cue.FadeIn.Value);
         }
         else
         {
-            _bgmPlayer.Stop();
+            _bgmPlayer.VolumeDb = target;
         }
-
-        ShowLine();
+        _bgmPlayer.Play();
     }
 
-    private void ShowLine()
+    private void ShowLine(bool drawStage)
     {
         if (_currentScene is null || _currentSceneNode is null) return;
 
@@ -328,9 +369,9 @@ public partial class PlayerScreen : Control
         var line = _currentScene.Lines[_lineIndex];
         var locale = _loaded.Project.PrimaryLocale;
 
-        StageRenderer.Draw(_stage, _loaded, _projectDir, _currentScene, _currentScene.StageAt(_lineIndex), keepFirst: 1);
+        if (drawStage) _stage.ShowLine(_lineIndex, animate: true);
 
-        _textBox.Visible = true;
+        _textBox.Visible = !_stage.TransitionRunning;
         if (line.Speaker is not null && _loaded.Characters.TryGetValue(line.Speaker, out var speaker))
         {
             _speakerLabel.Visible = true;
@@ -398,6 +439,7 @@ public partial class PlayerScreen : Control
         _textBox.Visible = false;
         _choiceBox.Visible = false;
         _bgmPlayer.Stop();
+        _bgmSrc = null;
 
         _endingPanel.Visible = true;
         _endingLabel.Text = $"★ {ending.Name[_loaded.Project.PrimaryLocale] ?? ending.DisplayName}";
