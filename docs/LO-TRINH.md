@@ -87,6 +87,9 @@ Gán sprite cho biểu cảm là chọn từ dropdown liệt kê file đã quét
 nào thì gọi `SceneData.StageAt(index)` của lõi để vẽ đúng trạng thái sân khấu
 tại dòng đó. `StageRenderer.cs` tách riêng phần vẽ nền+nhân vật để Chặng 6
 dùng lại y hệt — "canvas là game thật" nghĩa đen: cùng một hàm vẽ.
+Sân khấu soạn bằng giao diện: ai đứng sẵn đầu cảnh, ai bước ra / đổi biểu
+cảm / dời chỗ / rời sân khấu tại từng dòng (rời = `exit`, `StageAt` bỏ nhân
+vật đó), cộng chọn nhạc nền cho cảnh.
 
 **Chặng 6 — Engine chạy truyện.** `PlayerScreen.cs`: bộ thông dịch đi qua
 `StoryGraph`, xử lý điều kiện/biến/tác động, chữ gõ từng ký tự
@@ -147,7 +150,8 @@ Khung chat bên phải editor (`app/Ai/`), người dùng tự thêm API key:
 - **Agent làm được mọi việc trong app** (`ProjectTools.Agent.cs`): tạo/sửa
   nhân vật và biểu cảm, tạo/sắp xếp/xoá chương, tạo cảnh kèm nền, nhạc, sân
   khấu và thoại, dựng đồ thị một lần (thêm/sửa/xoá/nối node, điểm bắt đầu),
-  quản lý biến — cộng các công cụ sửa thoại, lựa chọn, rẽ nhánh, tiền đề.
+  quản lý biến, đổi sân khấu theo từng dòng (`update_scene` → `line_stage`)
+  — cộng các công cụ sửa thoại, lựa chọn, rẽ nhánh, tiền đề.
 - **Người dùng quyết**: mỗi thay đổi hiện thẻ trước/sau; mặc định bấm Áp dụng
   từng cái, bật "Tự áp dụng" để AI làm một mạch. Mỗi lần ghi là một bước
   Ctrl+Z riêng; id mới sinh ra được báo lại cho AI để bước sau dùng đúng.

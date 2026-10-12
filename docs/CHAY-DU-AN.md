@@ -123,10 +123,20 @@ cổng chưa nối, biến chưa khai báo, thiếu cảnh...). Bấm vào một
 Chọn node Cảnh → bấm **→ Mở trong Scene Canvas** ở panel phải. Hoặc sang
 tab **Cảnh** và chọn cảnh trong danh sách bên trái.
 
-Thanh trên cùng chọn ảnh nền. Bên dưới là danh sách lời thoại với các nút
-**+ Thêm dòng**, **Xoá dòng**, **↑ ↓**. Chọn một dòng để đặt người nói (hoặc
-"Dẫn truyện"), biểu cảm và nội dung. Khung hình phía trên hiện đúng sân khấu
-tại dòng đang chọn.
+Thanh trên cùng chọn ảnh **Nền** và **Nhạc** nền. Bên dưới là danh sách lời
+thoại với các nút **+ Thêm dòng**, **Xoá dòng**, **↑ ↓**. Chọn một dòng để đặt
+người nói (hoặc "Dẫn truyện"), biểu cảm và nội dung. Khung hình phía trên hiện
+đúng sân khấu tại dòng đang chọn.
+
+**Sân khấu đầu cảnh** — bấm nút cùng tên (hoặc bỏ chọn dòng) để soạn ai đứng
+sẵn khi cảnh mở ra: **+ Thêm nhân vật lên sân khấu**, rồi chọn nhân vật, biểu
+cảm và vị trí (xa trái, trái, giữa, phải, xa phải).
+
+**Thay đổi sân khấu tại một dòng** — chọn dòng, trong mục **Thay đổi sân
+khấu** bấm **+ Thêm thay đổi**. Nhân vật chưa có mặt sẽ bước ra; nhân vật đang
+đứng thì đổi biểu cảm hoặc chỗ đứng ("giữ biểu cảm"/"giữ vị trí" là không
+đổi), hoặc tích **Rời sân khấu tại dòng này**. Từ dòng đó trở đi khung hình
+hiện theo thay đổi mới.
 
 ## 6. Chơi thử
 
@@ -181,30 +191,6 @@ không nằm trong thư mục dự án, nên không lên Git. App cũng nhớ k�
 vị trí cửa sổ.
 
 ---
-
-## Hạn chế hiện tại và cách xử lý tạm
-
-Hai việc dưới đây giao diện chưa làm được. Trong lúc chờ, sửa trực tiếp file
-JSON của dự án bằng trình soạn thảo bất kỳ (Notepad, VS Code). Sửa xong thì
-mở lại dự án trong app.
-
-**Đặt nhân vật lên sân khấu.** Mở `scenes/<cảnh>.scene.json`, thêm vào
-`"stage"` những nhân vật có mặt từ đầu cảnh. `anchor` là một trong
-`farLeft`, `left`, `center`, `right`, `farRight`:
-
-```json
-"stage": [
-  { "character": "chitoge", "expression": "normal", "anchor": "center" }
-],
-```
-
-Sau đó, chọn biểu cảm ở từng dòng thoại trong app là nhân vật đổi mặt theo.
-
-**Nhạc nền cho cảnh.** Trong cùng file cảnh, thêm:
-
-```json
-"bgm": { "src": "assets/bgm/ten-bai.mp3", "volume": 0.6, "loop": true },
-```
 
 ## 9. Trợ lý AI
 

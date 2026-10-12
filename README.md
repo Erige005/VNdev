@@ -95,10 +95,9 @@ dotnet run --project tests\VNdev.Core.Tests      # chạy bộ test của lõi
 
 Định dạng dùng được: ảnh `png jpg webp`; nhạc hiện chỉ phát `ogg` và `mp3`.
 
-> **Chưa làm được bằng giao diện:** đặt nhân vật lên sân khấu, chọn nhạc nền
-> cho cảnh. Trong lúc
-> chờ, sửa tay file JSON theo hướng dẫn trong
-> [`docs/CHAY-DU-AN.md`](docs/CHAY-DU-AN.md#hạn-chế-hiện-tại-và-cách-xử-lý-tạm).
+Nhạc nền và nhân vật trên sân khấu chọn ngay trong tab **Cảnh**: bỏ chọn
+dòng để soạn **Sân khấu đầu cảnh**, chọn một dòng để cho nhân vật bước ra,
+đổi biểu cảm, dời chỗ hoặc rời sân khấu tại dòng đó.
 
 ---
 
