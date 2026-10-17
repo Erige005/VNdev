@@ -164,7 +164,7 @@ bắt được lỗi thật nhiều lần.
 
 ## Trạng thái hiện tại
 
-**Đã xong và đã kiểm chứng (41/41 test pass):**
+**Đã xong và đã kiểm chứng (49/49 test pass):**
 
 - Data model đầy đủ: dự án, chương, 7 loại node, cảnh, lời thoại, nhân vật,
   biểu cảm, biến, điều kiện lồng nhau
@@ -210,8 +210,10 @@ chuyện sống trong `ProjectSession.Ai`, không trong panel, để editor dự
 dòng, particle — trong `StageView.cs`, xem "Hiệu ứng và chuyển cảnh" trong
 `docs/LO-TRINH.md`.
 
-**Chưa có:** save-load trong
-game, Gallery/Ending List, xuất game ra .exe/web, đa ngôn ngữ đầy
+**Lưu/tải trong game (xong):** bảng ô lưu + F5/F9 trong Chơi thử, lõi
+`SaveGame`/`SaveStore`. Bản lưu nằm ở thư mục dữ liệu app, không trong dự án.
+
+**Chưa có:** Gallery/Ending List, xuất game ra .exe/web, đa ngôn ngữ đầy
 đủ. Xem "Sau 80%" trong `docs/LO-TRINH.md`.
 
 **Còn sót:** thư mục `apps/` và `packages/` là code TypeScript của hướng cũ

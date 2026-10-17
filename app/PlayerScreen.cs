@@ -26,6 +26,7 @@ public partial class PlayerScreen : Control
 
     private Dictionary<string, VarValue> _vars = new();
     private StoryGraph _graph = null!;
+    private StoryNode? _currentNode;
     private SceneNode? _currentSceneNode;
     private SceneData? _currentScene;
     private int _lineIndex;
@@ -54,6 +55,15 @@ public partial class PlayerScreen : Control
     }
 
     private Button _closeButton = null!;
+    private HBoxContainer _topRow = null!;
+
+    private SaveStore _saves = null!;
+    private PanelContainer _slotPanel = null!;
+    private Label _slotTitle = null!;
+    private GridContainer _slotGrid = null!;
+    private bool _slotSaving;
+    /// <summary>Ô đã có bản lưu vừa bấm một lần — bấm lần nữa mới ghi đè.</summary>
+    private string? _armedSlot;
 
     public override void _Ready()
     {
@@ -76,19 +86,25 @@ public partial class PlayerScreen : Control
         frameHolder.AddThemeConstantOverride("separation", 8);
         margin.AddChild(frameHolder);
 
-        var topRow = new HBoxContainer();
+        var topRow = _topRow = new HBoxContainer();
         var title = new Label { Text = "▶  Chơi thử" };
         title.AddThemeColorOverride("font_color", Palette.Ok);
         topRow.AddChild(title);
         var hint = new Label
         {
-            Text = "Click, Space hoặc Enter để sang dòng  ·  1–9 chọn phương án  ·  Esc để thoát",
+            Text = "Click, Space hoặc Enter để sang dòng  ·  1–9 chọn phương án  ·  F5 lưu nhanh  ·  F9 tải nhanh  ·  Esc để thoát",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         hint.AddThemeColorOverride("font_color", Palette.Text3);
         hint.AddThemeFontSizeOverride("font_size", 12);
         topRow.AddChild(hint);
+        var saveButton = new Button { Text = "Lưu…", FocusMode = FocusModeEnum.None, TooltipText = "Lưu vào một ô (F5: lưu nhanh)" };
+        saveButton.Pressed += () => OpenSlotPanel(saving: true);
+        topRow.AddChild(saveButton);
+        var loadButton = new Button { Text = "Tải…", FocusMode = FocusModeEnum.None, TooltipText = "Chơi tiếp từ một ô đã lưu (F9: tải nhanh)" };
+        loadButton.Pressed += () => OpenSlotPanel(saving: false);
+        topRow.AddChild(loadButton);
         _closeButton = new Button { Text = "✕ Đóng  (Esc)", FocusMode = FocusModeEnum.None };
         _closeButton.Pressed += () => _onClose();
         topRow.AddChild(_closeButton);
@@ -118,6 +134,12 @@ public partial class PlayerScreen : Control
         BuildTextBox();
         BuildChoiceBox();
         BuildEndingPanel();
+        BuildSlotPanel();
+
+        // Bản lưu nằm trong thư mục dữ liệu của app trên máy này, tách theo id dự
+        // án — không nằm trong thư mục dự án (xem SaveStore vì sao).
+        var projectKey = string.IsNullOrEmpty(_loaded.Project.Id) ? "du_an" : _loaded.Project.Id;
+        _saves = new SaveStore(new DiskFileSystem(Path.Combine(OS.GetUserDataDir(), "saves", projectKey)));
 
         _bgmPlayer = new AudioStreamPlayer();
         _sfxPlayer = new AudioStreamPlayer();
@@ -188,6 +210,26 @@ public partial class PlayerScreen : Control
 
         if (ev is InputEventKey { Pressed: true } key)
         {
+            if (_slotPanel.Visible)
+            {
+                if (key.Keycode == Key.Escape) CloseSlotPanel();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (!key.Echo && key.Keycode == Key.F5)
+            {
+                QuickSave();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+            if (!key.Echo && key.Keycode == Key.F9)
+            {
+                QuickLoad();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (key.Keycode == Key.Escape)
             {
                 _onClose();
@@ -213,8 +255,8 @@ public partial class PlayerScreen : Control
 
         if (ev is InputEventMouseButton { Pressed: true } mouse)
         {
-            if (_choiceBox.Visible || _endingPanel.Visible) return;
-            if (_closeButton.GetGlobalRect().HasPoint(mouse.Position)) return;
+            if (_choiceBox.Visible || _endingPanel.Visible || _slotPanel.Visible) return;
+            if (_topRow.GetGlobalRect().HasPoint(mouse.Position)) return;
 
             if (mouse.ButtonIndex is MouseButton.Left or MouseButton.WheelDown)
             {
@@ -226,7 +268,7 @@ public partial class PlayerScreen : Control
 
     private void Advance()
     {
-        if (_choiceBox.Visible || _endingPanel.Visible) return;
+        if (_choiceBox.Visible || _endingPanel.Visible || _slotPanel.Visible) return;
 
         // Bấm giữa lúc chuyển cảnh là tua cho xong, chưa sang dòng — không thì
         // người chơi bấm vội sẽ lỡ mất câu đầu của cảnh mới.
@@ -278,6 +320,8 @@ public partial class PlayerScreen : Control
             return;
         }
 
+        if (node is SceneNode or ChoiceNode or EndingNode) _currentNode = node;
+
         switch (node)
         {
             case SceneNode scene: EnterScene(scene); break;
@@ -293,7 +337,9 @@ public partial class PlayerScreen : Control
         }
     }
 
-    private void EnterScene(SceneNode sceneNode)
+    /// <param name="startLine">Khác 0 khi tải bản lưu giữa cảnh.</param>
+    /// <param name="transition">Thay chuyển cảnh của cảnh — tải bản lưu thì luôn hiện dần từ màn đen.</param>
+    private void EnterScene(SceneNode sceneNode, int startLine = 0, Transition? transition = null)
     {
         if (!_loaded.Scenes.TryGetValue(sceneNode.Scene, out var scene))
         {
@@ -303,7 +349,7 @@ public partial class PlayerScreen : Control
 
         _currentSceneNode = sceneNode;
         _currentScene = scene;
-        _lineIndex = 0;
+        _lineIndex = startLine;
 
         PlayBgm(scene.Bgm);
 
@@ -315,7 +361,7 @@ public partial class PlayerScreen : Control
             return;
         }
 
-        _stage.ShowScene(scene, 0, scene.BackgroundTransition, fromBlack: _firstScene);
+        _stage.ShowScene(scene, startLine, transition ?? scene.BackgroundTransition, fromBlack: _firstScene);
         _firstScene = false;
         ShowLine(drawStage: false);
     }
@@ -447,11 +493,214 @@ public partial class PlayerScreen : Control
 
     private void ShowStopped(string message)
     {
+        _currentNode = null;
         _textBox.Visible = true;
         _speakerLabel.Visible = false;
         _textLabel.Text = message;
         _typing = false;
         _textLabel.VisibleRatio = 1f;
+    }
+
+    // ---------- lưu / tải ----------
+
+    /// <summary>
+    /// Chỉ lưu được khi đang đứng ở một chỗ chạy tiếp được: giữa cảnh hoặc lúc
+    /// chọn phương án. Màn kết thúc và lúc truyện dừng vì lỗi thì không — tải
+    /// lên một chỗ cụt chẳng để làm gì.
+    /// </summary>
+    private bool CanSave => _currentNode is SceneNode or ChoiceNode && !_endingPanel.Visible;
+
+    private SaveGame Snapshot()
+    {
+        var locale = _loaded.Project.PrimaryLocale;
+        string? preview = _currentNode switch
+        {
+            ChoiceNode choice => choice.Prompt?[locale] is { Length: > 0 } p ? p : "(đang chọn phương án)",
+            _ when _currentScene is not null && _lineIndex < _currentScene.Lines.Count => _currentScene.Lines[_lineIndex].Text[locale],
+            _ => null,
+        };
+
+        return new SaveGame
+        {
+            SavedAt = DateTimeOffset.Now,
+            Graph = _graph.Id,
+            Node = _currentNode!.Id,
+            Scene = _currentSceneNode?.Id,
+            Line = _lineIndex,
+            Variables = new Dictionary<string, VarValue>(_vars),
+            Preview = preview,
+        };
+    }
+
+    private bool TrySave(string slot)
+    {
+        if (!CanSave)
+        {
+            ToastLayer.Show("Chỗ này chưa lưu được — chỉ lưu được giữa cảnh hoặc lúc đang chọn.", ToastLayer.Kind.Error);
+            return false;
+        }
+        try
+        {
+            _saves.Write(slot, Snapshot());
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ToastLayer.Show($"Không ghi được bản lưu: {ex.Message}", ToastLayer.Kind.Error);
+            return false;
+        }
+    }
+
+    private void QuickSave()
+    {
+        if (TrySave(SaveStore.QuickSlot)) ToastLayer.Show("Đã lưu nhanh  (F9 để tải lại)", ToastLayer.Kind.Ok);
+    }
+
+    private void QuickLoad()
+    {
+        var save = _saves.Read(SaveStore.QuickSlot);
+        if (save is null)
+        {
+            ToastLayer.Show("Chưa có bản lưu nhanh — bấm F5 để lưu.", ToastLayer.Kind.Info);
+            return;
+        }
+        Restore(save);
+    }
+
+    private void Restore(SaveGame save)
+    {
+        var r = save.Resolve(_loaded);
+        if (!r.Ok)
+        {
+            ToastLayer.Show(r.Error!, ToastLayer.Kind.Error);
+            return;
+        }
+
+        CloseSlotPanel();
+        _choiceBox.Visible = false;
+        _endingPanel.Visible = false;
+        _stage.SkipAnimations();
+        _vars = r.Variables;
+        _graph = r.Graph!;
+        _firstScene = true;
+        var fade = new Transition { Type = TransitionType.Fade, Duration = 0.4f };
+
+        if (r.Node is SceneNode sceneNode)
+        {
+            _currentNode = sceneNode;
+            EnterScene(sceneNode, r.Line, fade);
+        }
+        else
+        {
+            // Lưu lúc đang chọn: dựng lại cảnh nền ở dòng cuối người chơi đã thấy,
+            // rồi mới hiện các phương án đè lên, như lúc lưu.
+            if (r.Backdrop is not null)
+            {
+                var scene = _loaded.Scenes[r.Backdrop.Scene];
+                _currentSceneNode = r.Backdrop;
+                _currentScene = scene;
+                _lineIndex = scene.Lines.Count;
+                PlayBgm(scene.Bgm);
+                _stage.ShowScene(scene, r.Line, fade, fromBlack: true);
+            }
+            else
+            {
+                _currentSceneNode = null;
+                _currentScene = null;
+                PlayBgm(null);
+                _stage.ShowScene(null, -1);
+            }
+            _firstScene = false;
+            _textBox.Visible = false;
+            GoToNode(r.Node!.Id);
+        }
+        ToastLayer.Show($"Đã tải bản lưu lúc {save.SavedAt.ToLocalTime():HH:mm dd/MM}", ToastLayer.Kind.Ok);
+    }
+
+    private void OpenSlotPanel(bool saving)
+    {
+        if (saving && !CanSave)
+        {
+            ToastLayer.Show("Chỗ này chưa lưu được — chỉ lưu được giữa cảnh hoặc lúc đang chọn.", ToastLayer.Kind.Error);
+            return;
+        }
+        _slotSaving = saving;
+        _armedSlot = null;
+        _slotTitle.Text = saving ? "Lưu vào ô nào?" : "Chơi tiếp từ ô nào?";
+        RebuildSlots();
+        _slotPanel.Visible = true;
+    }
+
+    private void CloseSlotPanel()
+    {
+        _slotPanel.Visible = false;
+        _armedSlot = null;
+    }
+
+    private void RebuildSlots()
+    {
+        foreach (var child in _slotGrid.GetChildren())
+        {
+            _slotGrid.RemoveChild(child);
+            child.QueueFree();
+        }
+
+        var fontSize = Mathf.RoundToInt(Math.Max(12f, _stage.Size.Y * 0.022f));
+        foreach (var slot in SaveStore.NumberedSlots.Prepend(SaveStore.QuickSlot))
+        {
+            var save = _saves.Read(slot);
+            var name = slot == SaveStore.QuickSlot ? "Lưu nhanh" : $"Ô {slot}";
+            string text;
+            if (_armedSlot == slot) text = $"{name}\nBấm lần nữa\nđể ghi đè";
+            else if (save is null) text = $"{name}\n(trống)\n ";
+            else text = $"{name}\n{save.SavedAt.ToLocalTime():dd/MM  HH:mm}\n{Shorten(save.Preview)}";
+
+            var btn = new Button
+            {
+                Text = text,
+                FocusMode = FocusModeEnum.None,
+                ClipText = true,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                CustomMinimumSize = new Vector2(0, fontSize * 5),
+                // Đang tải thì ô trống không bấm được; lưu nhanh chỉ ghi bằng F5
+                // để ô đó luôn là "lần F5 gần nhất", không lẫn với lưu tay.
+                Disabled = _slotSaving ? slot == SaveStore.QuickSlot : save is null,
+                TooltipText = save?.Preview ?? "",
+            };
+            btn.AddThemeFontSizeOverride("font_size", fontSize);
+            if (_armedSlot == slot) btn.AddThemeColorOverride("font_color", Palette.Warn);
+            btn.Pressed += () => OnSlotPressed(slot, save);
+            _slotGrid.AddChild(btn);
+        }
+    }
+
+    private void OnSlotPressed(string slot, SaveGame? existing)
+    {
+        if (!_slotSaving)
+        {
+            if (existing is not null) Restore(existing);
+            return;
+        }
+
+        // Ghi đè một ô cũ phải bấm hai lần: lỡ tay một cái là mất chỗ đã chơi tới.
+        if (existing is not null && _armedSlot != slot)
+        {
+            _armedSlot = slot;
+            RebuildSlots();
+            return;
+        }
+        if (TrySave(slot))
+        {
+            CloseSlotPanel();
+            ToastLayer.Show(slot == SaveStore.QuickSlot ? "Đã lưu nhanh" : $"Đã lưu vào ô {slot}", ToastLayer.Kind.Ok);
+        }
+    }
+
+    private static string Shorten(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return " ";
+        var oneLine = text.ReplaceLineEndings(" ");
+        return oneLine.Length <= 26 ? oneLine : oneLine[..25] + "…";
     }
 
     // ---------- biến / điều kiện ----------
@@ -563,5 +812,39 @@ public partial class PlayerScreen : Control
         box.AddChild(closeBtn);
 
         _overlay.AddChild(_endingPanel);
+    }
+
+    private void BuildSlotPanel()
+    {
+        _slotPanel = new PanelContainer { Visible = false };
+        _slotPanel.SetAnchorsPreset(LayoutPreset.FullRect);
+        _slotPanel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.03f, 0.03f, 0.05f, 0.94f),
+            ContentMarginLeft = 32,
+            ContentMarginRight = 32,
+            ContentMarginTop = 24,
+            ContentMarginBottom = 24,
+        });
+
+        var box = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        box.AddThemeConstantOverride("separation", 14);
+        _slotPanel.AddChild(box);
+
+        _slotTitle = new Label { HorizontalAlignment = HorizontalAlignment.Center };
+        _slotTitle.AddThemeColorOverride("font_color", Palette.Text);
+        _slotTitle.AddThemeFontSizeOverride("font_size", 22);
+        box.AddChild(_slotTitle);
+
+        _slotGrid = new GridContainer { Columns = 5 };
+        _slotGrid.AddThemeConstantOverride("h_separation", 10);
+        _slotGrid.AddThemeConstantOverride("v_separation", 10);
+        box.AddChild(_slotGrid);
+
+        var cancel = new Button { Text = "Huỷ  (Esc)", SizeFlagsHorizontal = SizeFlags.ShrinkCenter, FocusMode = FocusModeEnum.None };
+        cancel.Pressed += CloseSlotPanel;
+        box.AddChild(cancel);
+
+        _overlay.AddChild(_slotPanel);
     }
 }

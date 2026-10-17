@@ -21,7 +21,7 @@ hướng đi sai.
 | 6 | Biến, điều kiện, rẽ nhánh | ✅ |
 | 7 | Chơi thử ngay trong app, có ảnh và âm thanh thật | ✅ |
 | 8 | Hiệu ứng chuyển cảnh, particle, rung màn hình | ✅ |
-| 9 | Save/Load trong game, Gallery, Ending List | ❌ |
+| 9 | Save/Load trong game, Gallery, Ending List | 🟡 Save/Load xong |
 | 10 | Xuất game ra .exe và web | ❌ |
 | 11 | Trợ lý AI | ✅ |
 | 12 | Đa ngôn ngữ đầy đủ, ruby text | ❌ |
@@ -194,6 +194,22 @@ người chơi sẽ thấy.
 Kiểm chứng bằng kịch bản chạy có cửa sổ, chụp màn hình giữa lúc từng hiệu
 ứng đang diễn (cả 9 kiểu chuyển cảnh chính), và gọi thẳng công cụ AI.
 
+## Lưu / tải trong game — đã xong
+
+Trong màn Chơi thử: nút **Lưu…** / **Tải…** mở bảng 9 ô + ô lưu nhanh;
+**F5** lưu nhanh, **F9** tải nhanh. Lưu được giữa cảnh và lúc đang chọn phương
+án (tải lên dựng lại cảnh nền phía sau các nút); ghi đè ô cũ phải bấm hai lần.
+
+- Lõi: `SaveGame` (vị trí node + dòng + biến, không chụp sân khấu — tính lại
+  bằng `StageAt`), `SaveStore` đọc ghi `<ô>.save.json` qua `IFileSystem`.
+- `SaveGame.Resolve` đối chiếu bản lưu với dự án đã bị sửa: dòng bị xoá bớt →
+  lùi về dòng cuối, biến mới → giá trị đầu, biến đã xoá → bỏ; node đã xoá →
+  báo lỗi rõ ràng thay vì đứng ở chỗ sai. 8 test.
+- Bản lưu nằm trong thư mục dữ liệu app (`<user data>/saves/<id dự án>/`),
+  **không** trong thư mục dự án: không lên Git, không thành bước Ctrl+Z.
+
+Còn lại của mục 9: Gallery, Ending List, ảnh thu nhỏ trên ô lưu.
+
 ---
 
 ## Sau 80%
@@ -201,7 +217,7 @@ Kiểm chứng bằng kịch bản chạy có cửa sổ, chụp màn hình gi�
 Theo thứ tự đáng làm trước:
 
 1. **Xuất game** — biến dự án thành .exe chạy độc lập.
-2. **Save/Load, Gallery, Ending List** trong game.
+2. **Gallery, Ending List** trong game (Save/Load đã xong).
 3. **Đa ngôn ngữ đầy đủ** — giao diện 5 thứ tiếng, ruby text cho furigana.
 
 ---
